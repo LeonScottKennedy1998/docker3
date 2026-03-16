@@ -1,0 +1,349 @@
+.user-manual-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.manual-content {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-top: 1.5rem;
+}
+
+.manual-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid #eaeaea;
+}
+
+.role-info h2 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+    font-size: 1.3rem;
+}
+
+.role-badge {
+    display: inline-block;
+    background: #3498db;
+    color: white;
+    padding: 0.5rem 1.5rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.download-section {
+    text-align: right;
+    margin-bottom: 2rem;
+}
+
+.download-btn {
+    display: inline-block;
+    background: #2ecc71;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: background 0.3s;
+}
+
+.download-btn:hover {
+    background: #27ae60;
+    text-decoration: none;
+}
+
+.help-text {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #7f8c8d;
+}
+
+.pdf-container {
+    margin: 2rem 0;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.pdf-viewer {
+    width: 100%;
+    height: 600px;
+    border: none;
+}
+
+@media (max-width: 768px) {
+    .user-manual-page {
+        padding: 1rem;
+    }
+    
+    .manual-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+    
+    .role-info h2 {
+        font-size: 1.2rem;
+    }
+    
+    .role-badge {
+        font-size: 0.85rem;
+        padding: 0.4rem 1.2rem;
+    }
+    
+    .download-section,
+    .pdf-container {
+        display: none;
+    }
+}
+
+.mobile-pdf-section {
+    padding: 2rem 1rem;
+    text-align: center;
+    background: #f8f9fa;
+    border-radius: 12px;
+    margin: 1rem 0 2rem 0;
+}
+
+.mobile-pdf-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    animation: bounce 2s infinite;
+}
+
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+
+.mobile-pdf-section h3 {
+    color: #2c3e50;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+}
+
+.mobile-pdf-info {
+    color: #5a6268;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin-bottom: 2rem;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.mobile-pdf-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    max-width: 280px;
+    margin: 0 auto 1.5rem auto;
+}
+
+.mobile-download-btn,
+.mobile-open-btn {
+    display: block;
+    padding: 1rem;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 1rem;
+    transition: all 0.3s;
+    text-align: center;
+}
+
+.mobile-download-btn {
+    background: #2ecc71;
+    color: white;
+    box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+}
+
+.mobile-download-btn:hover {
+    background: #27ae60;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(46, 204, 113, 0.4);
+}
+
+.mobile-open-btn {
+    background: #3498db;
+    color: white;
+    box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+}
+
+.mobile-open-btn:hover {
+    background: #2980b9;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+}
+
+.mobile-pdf-note {
+    color: #95a5a6;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+}
+
+.other-manuals {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 2px solid #eaeaea;
+}
+
+.other-manuals h3 {
+    color: #2c3e50;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+}
+
+.manual-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.manual-card {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #e0e0e0;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.manual-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+
+.manual-card h4 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.manual-card p {
+    margin: 0 0 1rem 0;
+    color: #5a6268;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.manual-card a {
+    color: #3498db;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.manual-card a:hover {
+    text-decoration: underline;
+}
+
+.manual-card a::after {
+    content: "↗";
+}
+
+@media (max-width: 768px) {
+    .other-manuals {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+    }
+    
+    .other-manuals h3 {
+        font-size: 1.1rem;
+        text-align: center;
+    }
+    
+    .manual-cards {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .manual-card {
+        text-align: center;
+        padding: 1.25rem;
+    }
+    
+    .manual-card a {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .user-manual-page h1 {
+        font-size: 1.5rem;
+        text-align: center;
+    }
+    
+    .page-subtitle {
+        font-size: 0.9rem;
+        text-align: center;
+    }
+    
+    .manual-content {
+        padding: 1rem;
+    }
+    
+    .mobile-pdf-section {
+        padding: 1.5rem 0.5rem;
+    }
+    
+    .mobile-pdf-icon {
+        font-size: 3rem;
+    }
+    
+    .mobile-pdf-section h3 {
+        font-size: 1.1rem;
+    }
+    
+    .mobile-pdf-info {
+        font-size: 0.9rem;
+    }
+    
+    .mobile-download-btn,
+    .mobile-open-btn {
+        padding: 0.9rem;
+        font-size: 0.95rem;
+    }
+}
+
+@media (max-width: 360px) {
+    .user-manual-page h1 {
+        font-size: 1.3rem;
+    }
+    
+    .mobile-pdf-icon {
+        font-size: 2.5rem;
+    }
+    
+    .mobile-pdf-section h3 {
+        font-size: 1rem;
+    }
+    
+    .mobile-pdf-info {
+        font-size: 0.85rem;
+    }
+    
+    .mobile-download-btn,
+    .mobile-open-btn {
+        padding: 0.8rem;
+        font-size: 0.9rem;
+    }
+}
+
+@media (hover: none) and (pointer: coarse) {
+    .mobile-download-btn,
+    .mobile-open-btn {
+        min-height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
