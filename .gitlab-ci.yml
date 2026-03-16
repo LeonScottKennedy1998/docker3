@@ -1,0 +1,22 @@
+stages:
+  - validate
+
+before_script:
+  - node -v
+  - npm -v
+
+build-check:
+  stage: validate
+  script:
+    - echo "Проверка сборки проекта"
+    - cd frontend
+    - npm install
+    - npm run build
+
+lint-check:
+  stage: validate
+  script:
+    - echo "Проверка синтаксических ошибок линтером"
+    - cd backend
+    - npm install
+    - npx eslint .
