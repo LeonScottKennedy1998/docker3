@@ -3,22 +3,33 @@ stages:
 
 variables:
   GIT_STRATEGY: clone
-  
+
 before_script:
   - node -v
   - npm -v
 
-build-check:
+# Проверка сборки фронта
+build-check-frontend:
   stage: validate
   script:
-    - echo "Проверка сборки проекта"
+    - echo "=== Проверка сборки frontend ==="
+    - cd frontend
     - npm install
     - npm run build
 
-lint-check:
+# Проверка бэка (просто установка зависимостей)
+build-check-backend:
   stage: validate
   script:
-    - echo "Проверка синтаксических ошибок линтером"
+    - echo "=== Проверка backend ==="
+    - cd backend
+    - npm install
+
+# Линтер бэка
+lint-check-backend:
+  stage: validate
+  script:
+    - echo "=== Проверка линтером backend ==="
     - cd backend
     - npm install
     - npx eslint .
