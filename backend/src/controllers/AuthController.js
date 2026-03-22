@@ -25,7 +25,7 @@ class AuthController {
             });
         }
         
-        const phoneRegex = /^[+]?[0-9\s\-\(\)]{10,15}$/;
+        const phoneRegex = /^[+]?[0-9\s\-()]{10,15}$/;
         if (!phoneRegex.test(phone)) {
             return res.status(400).json({ 
                 error: 'Неверный формат телефона' 

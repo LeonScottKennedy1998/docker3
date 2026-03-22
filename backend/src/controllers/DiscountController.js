@@ -412,13 +412,13 @@ class DiscountController {
                 }
                 break;
             
-            case 'seasonal':
+            case 'seasonal':{
                 const month = new Date().getMonth() + 1;
                 if (month >= 11 || month <= 2) {
                     baseQuery += ` AND category_id IN (1)`;
                 }
                 break;
-            
+            }
             case 'new_arrivals':
                 baseQuery += ` AND created_at >= NOW() - INTERVAL '7 days'`;
                 break;

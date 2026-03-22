@@ -353,15 +353,6 @@ async getProductById(req, res) {
         }
     }
 
-    async getCategories(req, res) {
-    try {
-        const result = await pool.query('SELECT * FROM categories ORDER BY category_name');
-        res.json(result.rows);
-    } catch (error) {
-        console.error('Ошибка получения категорий:', error);
-        res.status(500).json({ error: 'Ошибка получения категорий' });
-    }
-}
 
 async getProductsBatch(req, res) {
     try {
