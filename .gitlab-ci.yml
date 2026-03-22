@@ -34,3 +34,18 @@ lint-check-backend:
     - npm install
     - npx eslint .
 
+test-backend:
+  stage: validate
+  script:
+    - echo "=== Запуск тестов backend ==="
+    - cd backend
+    - npm install
+    - npm test
+
+run-backend:
+  stage: validate
+  script:
+    - echo "=== Проверка запуска backend ==="
+    - cd backend
+    - npm install
+    - node index.js & sleep 5
