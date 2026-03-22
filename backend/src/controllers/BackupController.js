@@ -67,10 +67,13 @@ class BackupController {
     }
 
     async createBackup(req, res) {
+        let filename;
+        let filePath;
+
         try {
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const filename = `backup_${timestamp}.sql`;
-            const filePath = path.join(BACKUP_DIR, filename);
+            filename = `backup_${timestamp}.sql`;
+            filePath = path.join(BACKUP_DIR, filename);
 
             const client = await pool.connect();
             const dbConfig = client.connectionParameters;

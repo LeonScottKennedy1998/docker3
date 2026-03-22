@@ -713,6 +713,7 @@ async previewRule(req, res) {
                 break;
             
             case 'seasonal':
+                {
                 const month = new Date().getMonth() + 1;
                 console.log('📅 Текущий месяц:', month);
                 if (month >= 11 || month <= 2) {
@@ -720,6 +721,7 @@ async previewRule(req, res) {
                     console.log('✅ Добавлено сезонное условие (зима)');
                 }
                 break;
+            }
             
             case 'new_arrivals':
                 baseQuery += ` AND p.created_at >= NOW() - INTERVAL '7 days'`;
