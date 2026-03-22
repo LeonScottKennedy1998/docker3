@@ -1,6 +1,9 @@
 stages:
   - validate
 
+variables:
+  GIT_STRATEGY: clone
+  
 before_script:
   - node -v
   - npm -v
@@ -9,7 +12,6 @@ build-check:
   stage: validate
   script:
     - echo "Проверка сборки проекта"
-    - cd frontend
     - npm install
     - npm run build
 
