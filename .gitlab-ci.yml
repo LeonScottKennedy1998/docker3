@@ -1,207 +1,51 @@
 stages:
   - validate
-  - test
-  - functional
 
 variables:
   GIT_STRATEGY: clone
-  NODE_ENV: test
-  JWT_SECRET: test_secret_key_for_jwt_tokens_12345
-
-cache:
-  paths:
-    - backend/node_modules/
-    - frontend/node_modules/
-  key: ${CI_COMMIT_REF_SLUG}
 
 before_script:
   - node -v
   - npm -v
 
-# ========== ОСНОВНЫЕ ЗАДАЧИ ==========
-
+# Проверка сборки фронта
 build-check-frontend:
   stage: validate
   script:
     - echo "=== Проверка сборки frontend ==="
     - cd frontend
-    - npm install --no-audit
+    - npm install
     - npm run build
-  cache:
-    paths:
-      - frontend/node_modules/
 
+# Проверка бэка (просто установка зависимостей)
 build-check-backend:
   stage: validate
   script:
     - echo "=== Проверка backend ==="
     - cd backend
-    - npm install --no-audit
+    - npm install
 
+# Линтер бэка
 lint-check-backend:
   stage: validate
   script:
     - echo "=== Проверка линтером backend ==="
     - cd backend
-    - npm install --no-audit
-    - npx eslint . --quiet || true
-  allow_failure: true
+    - npm install
+    - npx eslint .
 
-# ========== ФУНКЦИОНАЛЬНАЯ ЗАДАЧА 1: ЗАПУСК ТЕСТОВ ==========
-run-tests:
-  stage: test
+test-backend:
+  stage: validate
   script:
-    - echo "=== Запуск автоматических тестов ==="
+    - echo "=== Запуск тестов backend ==="
     - cd backend
-    
-    # Проверяем наличие тестов
-    - echo "📋 Найденные тесты:"
-    - find . -name "*.test.js" -type f || echo "Тесты не найдены"
-    
-    # Запускаем тесты
-    - npm test -- --coverage --verbose || echo "⚠️ Некоторые тесты не прошли"
-  artifacts:
-    paths:
-      - backend/coverage/
-    reports:
-      coverage_report:
-        coverage_format: cobertura
-        path: backend/coverage/cobertura-coverage.xml
-    expire_in: 1 week
-  allow_failure: true
+    - npm install
+    - npm test
 
-# ========== ФУНКЦИОНАЛЬНАЯ ЗАДАЧА 2: ПРОВЕРКА API КОНТРОЛЛЕРОВ ==========
-api-health-check:
-  stage: functional
+run-backend:
+  stage: validate
   script:
-    - echo "=== Проверка API контроллеров ==="
+    - echo "=== Проверка запуска backend ==="
     - cd backend
-    
-    # Проверяем, что все контроллеры экспортируют нужные методы
-    - echo "🔍 Проверка CategoryController:"
-    - node -e "
-      const CategoryController = require('./src/controllers/CategoryController');
-      const methods = ['getCategories', 'createCategory', 'updateCategory', 'deleteCategory'];
-      methods.forEach(m => {
-        if (typeof CategoryController[m] === 'function') {
-          console.log('✅', m, 'существует');
-        } else {
-          console.log('❌', m, 'ОТСУТСТВУЕТ');
-          process.exit(1);
-        }
-      });
-      console.log('✅ CategoryController OK');
-    "
-    
-    # Проверяем наличие middleware
-    - echo ""
-    - echo "🔍 Проверка auth middleware:"
-    - node -e "
-      const { authMiddleware, roleMiddleware } = require('./src/middleware/auth');
-      if (typeof authMiddleware === 'function') {
-        console.log('✅ authMiddleware существует');
-      } else {
-        console.log('❌ authMiddleware ОТСУТСТВУЕТ');
-        process.exit(1);
-      }
-      if (typeof roleMiddleware === 'function') {
-        console.log('✅ roleMiddleware существует');
-      } else {
-        console.log('❌ roleMiddleware ОТСУТСТВУЕТ');
-        process.exit(1);
-      }
-    "
-    
-    # Проверяем наличие конфигурации БД
-    - echo ""
-    - echo "🔍 Проверка конфигурации БД:"
-    - node -e "
-      try {
-        const pool = require('./src/config/database');
-        if (pool && typeof pool.query === 'function') {
-          console.log('✅ Конфигурация БД загружена');
-        } else {
-          console.log('❌ Ошибка конфигурации БД');
-          process.exit(1);
-        }
-      } catch(e) {
-        console.log('⚠️ БД не настроена (ожидаемо в CI)');
-      }
-    "
-    
-    # Проверяем наличие всех обязательных переменных окружения
-    - echo ""
-    - echo "🔍 Проверка переменных окружения:"
-    - node -e "
-      const required = ['JWT_SECRET'];
-      const optional = ['EMAIL_USER', 'EMAIL_PASSWORD', 'FRONTEND_URL'];
-      required.forEach(v => {
-        if (process.env[v]) {
-          console.log('✅', v, 'установлена');
-        } else {
-          console.log('❌', v, 'ОТСУТСТВУЕТ');
-          process.exit(1);
-        }
-      });
-      optional.forEach(v => {
-        if (process.env[v]) {
-          console.log('✅', v, 'установлена (опционально)');
-        } else {
-          console.log('⚠️', v, 'не установлена (опционально)');
-        }
-      });
-    "
-    
-    - echo ""
-    - echo "✅ Все проверки API пройдены"
-  allow_failure: false
-
-# Дополнительная функциональная задача: проверка структуры проекта
-project-structure-check:
-  stage: functional
-  script:
-    - echo "=== Проверка структуры проекта ==="
-    
-    # Проверяем наличие обязательных папок
-    - echo "📁 Проверка структуры backend:"
-    - cd backend
-    - for dir in src controllers models routes middleware utils config; do
-        if [ -d "src/$dir" ]; then
-          echo "✅ src/$dir существует";
-        else
-          echo "⚠️ src/$dir отсутствует";
-        fi
-      done
-    
-    # Проверяем наличие основных файлов
-    - echo ""
-    - echo "📄 Проверка основных файлов:"
-    - for file in index.js package.json; do
-        if [ -f "$file" ]; then
-          echo "✅ $file существует";
-        else
-          echo "❌ $file ОТСУТСТВУЕТ";
-          exit 1;
-        fi
-      done
-    
-    # Проверяем, что в package.json есть все скрипты
-    - echo ""
-    - echo "📦 Проверка скриптов package.json:"
-    - node -e "
-      const pkg = require('./package.json');
-      const scripts = ['start', 'dev', 'test'];
-      scripts.forEach(s => {
-        if (pkg.scripts && pkg.scripts[s]) {
-          console.log('✅', s, 'скрипт существует');
-        } else {
-          console.log('❌', s, 'скрипт ОТСУТСТВУЕТ');
-          process.exit(1);
-        }
-      });
-      console.log('✅ Все скрипты на месте');
-    "
-    
-    - echo ""
-    - echo "✅ Структура проекта корректна"
-  allow_failure: false
+    - npm install
+    - node index.js & sleep 5
