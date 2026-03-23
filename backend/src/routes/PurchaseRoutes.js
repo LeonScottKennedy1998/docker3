@@ -18,5 +18,4 @@ router.get('/delivery-statuses', authMiddleware, roleMiddleware('Менедже�
 
 router.get('/reports', authMiddleware, roleMiddleware('Менеджер по закупкам'), purchaseController.getPurchaseReport);
 
-
 module.exports = router;

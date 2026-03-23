@@ -8,7 +8,6 @@ before_script:
   - node -v
   - npm -v
 
-# Проверка сборки фронта
 build-check-frontend:
   stage: validate
   script:
@@ -17,7 +16,6 @@ build-check-frontend:
     - npm install
     - npm run build
 
-# Проверка бэка (просто установка зависимостей)
 build-check-backend:
   stage: validate
   script:
@@ -25,7 +23,6 @@ build-check-backend:
     - cd backend
     - npm install
 
-# Линтер бэка
 lint-check-backend:
   stage: validate
   script:
@@ -49,3 +46,5 @@ run-backend:
     - cd backend
     - npm install
     - node index.js & sleep 5
+
+    
