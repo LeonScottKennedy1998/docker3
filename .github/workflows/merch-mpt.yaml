@@ -1,0 +1,61 @@
+name: merch-mpt
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  validate:
+    name: Validate Node.js project
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Check Node and npm versions
+        run: |
+          node -v
+          npm -v
+      
+      - name: Check build frontend
+        run: |
+          echo "=== Проверка сборки frontend ==="
+          cd frontend
+          npm install
+          npm run build
+      
+      - name: Check build backend
+        run: |
+          echo "=== Проверка backend ==="
+          cd backend
+          npm install
+      
+      - name: Lint backend
+        run: |
+          echo "=== Проверка линтером backend ==="
+          cd backend
+          npm install
+          npx eslint .
+      
+      - name: Run backend tests
+        run: |
+          echo "=== Запуск тестов backend ==="
+          cd backend
+          npm install
+          npm test
+      
+      - name: Check backend startup
+        run: |
+          echo "=== Проверка запуска backend ==="
+          cd backend
+          npm install
+          node index.js & sleep 5

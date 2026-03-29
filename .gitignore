@@ -31,8 +31,3 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
-
-# Railway/Deployment files (но не gitignore)
-railway.json
-*.yaml
-*.yml
