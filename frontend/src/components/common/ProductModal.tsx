@@ -104,7 +104,7 @@ const ProductModal: React.FC<ProductModalProps> = ({
                                 {product.stock === 0 ? 'Товар закончился' : 'Добавить в корзину'}
                             </button>
                             <button onClick={onClose} className="modal-close-action-btn">
-                                Вернуться в каталог
+                                Назад
                             </button>
                         </div>
                     </div>

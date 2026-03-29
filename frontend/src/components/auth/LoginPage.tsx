@@ -22,6 +22,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [timer, setTimer] = useState(600);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showTwoFactorCode, setShowTwoFactorCode] = useState(false);
 
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
@@ -155,6 +157,17 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         setTwoFactorData({ code: '', email: '', userId: null });
     };
 
+    // Email администратора для отображения
+    const adminEmail = 'admin@mpt.ru';
+
+    const toggleShowPassword = () => {
+        setShowPassword(!showPassword);
+    };
+
+    const toggleShowTwoFactorCode = () => {
+        setShowTwoFactorCode(!showTwoFactorCode);
+    };
+
     return (
         <div className="page auth-page">
             <div className="auth-container">
@@ -182,17 +195,27 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                                     />
                                 </div>
                                 
-                                <div className="form-group">
+                                <div className="form-group password-group">
                                     <label>Пароль</label>
-                                    <input
-                                        type="password"
-                                        name="password"
-                                        value={credentials.password}
-                                        onChange={handleCredentialsChange}
-                                        placeholder="••••••••"
-                                        required
-                                        disabled={loading}
-                                    />
+                                    <div className="password-input-wrapper">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            name="password"
+                                            value={credentials.password}
+                                            onChange={handleCredentialsChange}
+                                            placeholder="••••••••"
+                                            required
+                                            disabled={loading}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle"
+                                            onClick={toggleShowPassword}
+                                            tabIndex={-1}
+                                        >
+                                            {showPassword ? "👁️" : "👁️‍🗨️"}
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <button 
@@ -203,6 +226,26 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                                     {loading ? 'Вход...' : 'Войти'}
                                 </button>
                             </form>
+                            
+                            {/* Блок с контактами администратора */}
+                            <div className="admin-contact">
+                                <div className="admin-contact-header">
+                                    <span className="admin-icon">👨‍💼</span>
+                                    <span>Проблемы со входом?</span>
+                                </div>
+                                <p className="admin-contact-text">
+                                    Если у вас возникли проблемы с авторизацией, обратитесь к администратору:
+                                </p>
+                                <div className="admin-contact-info">
+                                    <div className="contact-item">
+                                        <span className="contact-icon">📧</span>
+                                        <span className="contact-email">{adminEmail}</span>
+                                    </div>
+                                </div>
+                                <p className="admin-contact-note">
+                                    <small>Администратор поможет восстановить доступ или решить проблемы с учетной записью</small>
+                                </p>
+                            </div>
                             
                             <div className="auth-footer">
                                 <Link to="/forgot-password" className="auth-link">Забыли пароль?</Link>
@@ -224,20 +267,30 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                             </div>
                             
                             <form onSubmit={handleSubmitTwoFactor}>
-                                <div className="form-group">
+                                <div className="form-group password-group">
                                     <label>6-значный код</label>
-                                    <input
-                                        type="text"
-                                        name="code"
-                                        value={twoFactorData.code}
-                                        onChange={handleTwoFactorChange}
-                                        placeholder="123456"
-                                        maxLength={6}
-                                        pattern="[0-9]{6}"
-                                        required
-                                        disabled={loading || timer <= 0}
-                                        className="code-input"
-                                    />
+                                    <div className="password-input-wrapper">
+                                        <input
+                                            type={showTwoFactorCode ? "text" : "password"}
+                                            name="code"
+                                            value={twoFactorData.code}
+                                            onChange={handleTwoFactorChange}
+                                            placeholder="123456"
+                                            maxLength={6}
+                                            pattern="[0-9]{6}"
+                                            required
+                                            disabled={loading || timer <= 0}
+                                            className="code-input"
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle"
+                                            onClick={toggleShowTwoFactorCode}
+                                            tabIndex={-1}
+                                        >
+                                            {showTwoFactorCode ? "👁️" : "👁️‍🗨️"}
+                                        </button>
+                                    </div>
                                     <small>Введите код из письма</small>
                                 </div>
                                 

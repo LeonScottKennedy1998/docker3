@@ -17,6 +17,8 @@ const RegisterPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         setFormData({
@@ -82,6 +84,17 @@ const RegisterPage: React.FC = () => {
         }
     };
 
+    // Email администратора для отображения
+    const adminEmail = 'admin@mpt.ru';
+
+    const toggleShowPassword = () => {
+        setShowPassword(!showPassword);
+    };
+
+    const toggleShowConfirmPassword = () => {
+        setShowConfirmPassword(!showConfirmPassword);
+    };
+
     return (
         <div className="page auth-page">
             <div className="auth-container">
@@ -104,30 +117,51 @@ const RegisterPage: React.FC = () => {
                                 placeholder="student@mpt.ru"
                                 required
                             />
+                            <small>Введите действующий email для получения уведомлений</small>
                         </div>
                         
                         <div className="form-row" style={{ display: 'flex', flexDirection: 'row', gap: '16px' }}>
-                            <div className="form-group" style={{ flex: 1 }}>
+                            <div className="form-group password-group" style={{ flex: 1 }}>
                                 <label>Пароль *</label>
-                                <input 
-                                    type="password" 
-                                    name="password"
-                                    value={formData.password}
-                                    onChange={handleChange}
-                                    style={{ width: '100%', height: '48px' }} 
-                                    required
-                                />
+                                <div className="password-input-wrapper">
+                                    <input 
+                                        type={showPassword ? "text" : "password"} 
+                                        name="password"
+                                        value={formData.password}
+                                        onChange={handleChange}
+                                        style={{ width: '100%', height: '48px' }} 
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle"
+                                        onClick={toggleShowPassword}
+                                        tabIndex={-1}
+                                    >
+                                        {showPassword ? "👁️" : "👁️‍🗨️"}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="form-group" style={{ flex: 1 }}>
+                            <div className="form-group password-group" style={{ flex: 1 }}>
                                 <label>Подтвердите пароль *</label>
-                                <input 
-                                    type="password" 
-                                    name="confirmPassword"
-                                    value={formData.confirmPassword}
-                                    onChange={handleChange}
-                                    style={{ width: '100%', height: '48px' }} 
-                                    required
-                                />
+                                <div className="password-input-wrapper">
+                                    <input 
+                                        type={showConfirmPassword ? "text" : "password"} 
+                                        name="confirmPassword"
+                                        value={formData.confirmPassword}
+                                        onChange={handleChange}
+                                        style={{ width: '100%', height: '48px' }} 
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle"
+                                        onClick={toggleShowConfirmPassword}
+                                        tabIndex={-1}
+                                    >
+                                        {showConfirmPassword ? "👁️" : "👁️‍🗨️"}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -210,6 +244,23 @@ const RegisterPage: React.FC = () => {
                                 <li>Рекомендуется использовать буквы, цифры и специальные символы</li>
                                 <li>Не используйте простые пароли (123456, password, qwerty)</li>
                             </ul>
+                        </div>
+                        
+                        {/* Блок с контактами администратора */}
+                        <div className="admin-contact register-contact">
+                            <div className="admin-contact-header">
+                                <span className="admin-icon">👨‍💼</span>
+                                <span>Нужна помощь?</span>
+                            </div>
+                            <p className="admin-contact-text">
+                                При возникновении проблем с регистрацией обратитесь к администратору:
+                            </p>
+                            <div className="admin-contact-info">
+                                <div className="contact-item">
+                                    <span className="contact-icon">📧</span>
+                                    <span className="contact-email">{adminEmail}</span>
+                                </div>
+                            </div>
                         </div>
                         
                         <button 

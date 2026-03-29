@@ -38,6 +38,19 @@ function App() {
         localStorage.setItem('cart', JSON.stringify(cart));
     }, [cart]);
 
+    useEffect(() => {
+    const handleCartUpdate = (event: any) => {
+        const newCart = event.detail;
+        setCart(newCart);
+    };
+
+    window.addEventListener('cartUpdated', handleCartUpdate);
+    
+    return () => {
+        window.removeEventListener('cartUpdated', handleCartUpdate);
+    };
+    }, []);
+
     const handleLogin = (userData: any) => {
         console.log('📋 Данные пользователя при входе:', userData);
         setUser(userData);

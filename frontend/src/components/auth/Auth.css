@@ -500,3 +500,246 @@
         padding: 1rem 1.5rem;
     }
 }
+
+/* Стили для блока контактов администратора */
+.admin-contact {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+}
+
+.admin-contact.register-contact {
+    background: #e8f4fd;
+    border-color: #3498db;
+    margin: 1rem 0;
+}
+
+.admin-contact-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+}
+
+.admin-icon {
+    font-size: 1.3rem;
+}
+
+.admin-contact-text {
+    color: #5a6268;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.admin-contact-info {
+    margin-top: 8px;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+    display: inline-flex;
+    padding: 8px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.contact-icon {
+    font-size: 1.1rem;
+}
+
+.contact-email {
+    color: #3498db;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.admin-contact-note {
+    margin-top: 12px;
+    color: #7f8c8d;
+    font-size: 0.85rem;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    .admin-contact {
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .admin-contact-header {
+        font-size: 1rem;
+    }
+    
+    .contact-item {
+        padding: 6px 12px;
+    }
+    
+    .contact-email {
+        font-size: 0.85rem;
+    }
+    
+    .admin-contact-text {
+        font-size: 0.85rem;
+    }
+    
+    .admin-contact-note {
+        font-size: 0.75rem;
+    }
+}
+
+/* Стили для группы пароля с кнопкой показа */
+.password-group {
+    position: relative;
+}
+
+.password-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-input-wrapper input {
+    width: 100%;
+    padding-right: 45px !important;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #7f8c8d;
+    transition: color 0.3s;
+    z-index: 1;
+}
+
+.password-toggle:hover {
+    color: #2c3e50;
+}
+
+.password-toggle:focus {
+    outline: none;
+}
+
+/* Стили для блока контактов администратора */
+.admin-contact {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    border: 1px solid #e0e0e0;
+    text-align: center;
+}
+
+.admin-contact.register-contact {
+    background: #e8f4fd;
+    border-color: #3498db;
+    margin: 1rem 0;
+}
+
+.admin-contact-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 12px;
+    font-size: 1.1rem;
+}
+
+.admin-icon {
+    font-size: 1.3rem;
+}
+
+.admin-contact-text {
+    color: #5a6268;
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.admin-contact-info {
+    margin-top: 8px;
+}
+
+.contact-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    background: white;
+    border-radius: 8px;
+    display: inline-flex;
+    padding: 8px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.contact-icon {
+    font-size: 1.1rem;
+}
+
+.contact-email {
+    color: #3498db;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.admin-contact-note {
+    margin-top: 12px;
+    color: #7f8c8d;
+    font-size: 0.85rem;
+}
+
+/* Адаптация для мобильных устройств */
+@media (max-width: 768px) {
+    .admin-contact {
+        padding: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .admin-contact-header {
+        font-size: 1rem;
+    }
+    
+    .contact-item {
+        padding: 6px 12px;
+    }
+    
+    .contact-email {
+        font-size: 0.85rem;
+    }
+    
+    .admin-contact-text {
+        font-size: 0.85rem;
+    }
+    
+    .admin-contact-note {
+        font-size: 0.75rem;
+    }
+    
+    .password-toggle {
+        right: 10px;
+        font-size: 1rem;
+    }
+}
