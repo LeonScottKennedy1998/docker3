@@ -24,53 +24,41 @@ const cartRoutes = require('./src/routes/CartRoutes');
 const app = express();
 const port = process.env.PORT || 5001;
 const HOST = process.env.BIND_HOST || '0.0.0.0';
+
 app.set('trust proxy', 1);
 
-function isAllowedCorsOrigin(origin) {
-    if (!origin) return true;
-    const extra = (process.env.CORS_ORIGINS || '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean);
-    if (extra.includes(origin)) return true;
-    if (/^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin)) return true;
-    if (/^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(?::\d+)?$/i.test(origin)) return true;
-    return (
-        origin === 'https://pp-ten-pink.vercel.app' ||
-        origin === 'https://pp-vv34.vercel.app'
-    );
-}
-
 const corsOptions = {
-    origin(origin, callback) {
-        callback(null, isAllowedCorsOrigin(origin));
-    },
+    origin: true,
     credentials: true,
     optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
+
+
 app.use(express.json());
-
 app.use(sqlInjectionCheck);
-
 app.use(performanceMiddleware);
+
 
 async function checkDatabase() {
     try {
         const result = await pool.query('SELECT NOW()');
         console.log('DB OK', result.rows[0].now);
+
         const tables = await pool.query(`
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = 'public'
             ORDER BY table_name
         `);
+
         console.log('Tables:', tables.rows.map((t) => t.table_name).join(', '));
     } catch (error) {
         console.error('DB error:', error.message);
     }
 }
+
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
@@ -87,16 +75,20 @@ app.use('/api/products/categories', categoryRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/cart', cartRoutes);
 
+
 const startPerformanceMonitoring = () => {
     const monitor = new PerformanceMonitor();
+
     setInterval(() => {
         monitor.saveMemoryUsage().catch(console.error);
     }, 5 * 60 * 1000);
+
     console.log('Performance monitor interval started');
 };
 
 app.listen(port, HOST, () => {
     console.log(`Server ${HOST}:${port}`);
+
     checkDatabase()
         .then(() => {
             setupCronJobs();

@@ -33,8 +33,8 @@ export const API_URLS = {
         UPDATE: (id: number | string) => `${API_BASE_URL}/products/${id}`,
         TOGGLE_STATUS: (id: number | string, action: 'activate' | 'deactivate') => `${API_BASE_URL}/products/${id}/${action}`,
         BATCH: `${API_BASE_URL}/products/batch`,
-        UPDATE_CATEGORY: (id: number) => `/api/products/categories/${id}`,
-        DELETE_CATEGORY: (id: number) => `/api/products/categories/${id}`
+        UPDATE_CATEGORY: (id: number) => `/products/categories/${id}`,
+        DELETE_CATEGORY: (id: number) => `/products/categories/${id}`
     },
     
     DISCOUNTS: {
