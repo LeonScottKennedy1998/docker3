@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile",
+    "name": "Магазин Мерча",
     "slug": "mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -29,7 +29,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiBaseUrl": "http://localhost:5001/api",
+      "apiBaseUrl": "https://diplomapi.vercel.app/api",
       "privacyUrl": "",
       "manualUrl": ""
     },

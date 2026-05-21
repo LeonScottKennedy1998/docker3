@@ -747,7 +747,7 @@ async resendTwoFactorCode(req, res) {
             [resetToken, resetTokenExpires, user.user_id]
         );
         
-        const resetLink = `${'http://localhost:3000'}/reset-password/${resetToken}`;
+        const resetLink = `${'https://diplomweb.vercel.app/'}/reset-password/${resetToken}`;
         
         setImmediate(async () => {
             try {

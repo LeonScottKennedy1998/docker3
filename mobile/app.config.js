@@ -5,7 +5,7 @@ const apiUrl =
   process.env.EXPO_PUBLIC_API_URL?.trim() ||
   process.env.REACT_APP_API_URL?.trim() ||
   cfg.expo.extra?.apiBaseUrl?.trim() ||
-  'http://localhost:5001/api';
+  'https://diplomapi.vercel.app/api';
 
 module.exports = {
   expo: {
