@@ -5,6 +5,18 @@ import { Product } from '../../types/product';
 import { API_URLS, getAuthHeaders } from '../../config/api';
 import './CatalogPage.css';
 
+const readCatalogPageSize = (): number => {
+    try {
+        const raw = localStorage.getItem('user');
+        if (!raw) return 15;
+        const u = JSON.parse(raw);
+        const n = Number(u.catalog_page_size);
+        return [10, 15, 20].includes(n) ? n : 15;
+    } catch {
+        return 15;
+    }
+};
+
 const CatalogPage = ({ addToCart }: { addToCart: (product: any) => void }) => {
     const [products, setProducts] = useState<Product[]>([]);
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
@@ -15,6 +27,8 @@ const CatalogPage = ({ addToCart }: { addToCart: (product: any) => void }) => {
     const [sortBy, setSortBy] = useState<string>('newest');
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [pageSize, setPageSize] = useState<number>(() => readCatalogPageSize());
+    const [catalogPage, setCatalogPage] = useState(1);
 
     useEffect(() => {
         fetchProducts();
@@ -52,6 +66,34 @@ const CatalogPage = ({ addToCart }: { addToCart: (product: any) => void }) => {
         
         setFilteredProducts(filtered);
     }, [products, selectedCategory, sortBy]);
+
+    useEffect(() => {
+        setCatalogPage(1);
+    }, [selectedCategory, sortBy, pageSize]);
+
+    useEffect(() => {
+        const tp = Math.max(1, Math.ceil(filteredProducts.length / pageSize) || 1);
+        setCatalogPage((p) => Math.min(Math.max(1, p), tp));
+    }, [filteredProducts.length, pageSize]);
+
+    useEffect(() => {
+        const syncPageSize = () => setPageSize(readCatalogPageSize());
+        window.addEventListener('userUpdated', syncPageSize);
+        return () => window.removeEventListener('userUpdated', syncPageSize);
+    }, []);
+
+    useEffect(() => {
+        const handleOpenReviews = (event: any) => {
+            setSelectedProduct(event.detail);
+            setIsModalOpen(true);
+        };
+
+        window.addEventListener('openReviews', handleOpenReviews);
+
+        return () => {
+            window.removeEventListener('openReviews', handleOpenReviews);
+        };
+    }, []);
 
     const fetchProducts = async () => {
         try {
@@ -126,6 +168,14 @@ const CatalogPage = ({ addToCart }: { addToCart: (product: any) => void }) => {
         );
     }
 
+    const totalCatalogPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize) || 1);
+    const safePage = Math.min(catalogPage, totalCatalogPages);
+    const sliceStart = (safePage - 1) * pageSize;
+    const pagedProducts = filteredProducts.slice(sliceStart, sliceStart + pageSize);
+    const showPagination = filteredProducts.length > pageSize;
+    const rangeFrom = filteredProducts.length === 0 ? 0 : sliceStart + 1;
+    const rangeTo = Math.min(sliceStart + pageSize, filteredProducts.length);
+
     return (
         <div className="page catalog-page">
             <h1>Каталог товаров</h1>
@@ -174,6 +224,12 @@ const CatalogPage = ({ addToCart }: { addToCart: (product: any) => void }) => {
                     <span>
                         Найдено товаров: <strong>{filteredProducts.length}</strong>
                         {selectedCategory !== 'all' && ` в категории "${selectedCategory}"`}
+                        {filteredProducts.length > 0 && (
+                            <span className="catalog-page-hint">
+                                {' '}
+                                (на странице: {rangeFrom}–{rangeTo}, по {pageSize} шт.)
+                            </span>
+                        )}
                     </span>
                     {(selectedCategory !== 'all' || sortBy !== 'newest') && (
                         <button onClick={clearFilters} className="clear-filters-btn">
@@ -191,16 +247,41 @@ const CatalogPage = ({ addToCart }: { addToCart: (product: any) => void }) => {
                     </button>
                 </div>
             ) : (
-                <div className="products-grid">
-                    {filteredProducts.map(product => (
-                        <ProductCard 
-                            key={product.id} 
-                            product={product} 
-                            onAddToCart={addToCart}
-                            onViewDetails={handleViewDetails}
-                        />
-                    ))}
-                </div>
+                <>
+                    <div className="products-grid">
+                        {pagedProducts.map((product) => (
+                            <ProductCard
+                                key={product.id}
+                                product={product}
+                                onAddToCart={addToCart}
+                                onViewDetails={handleViewDetails}
+                            />
+                        ))}
+                    </div>
+                    {showPagination && (
+                        <div className="catalog-pagination">
+                            <button
+                                type="button"
+                                className="secondary-btn catalog-page-btn"
+                                disabled={safePage <= 1}
+                                onClick={() => setCatalogPage((p) => Math.max(1, p - 1))}
+                            >
+                                ← Назад
+                            </button>
+                            <span className="catalog-page-indicator">
+                                Страница {safePage} из {totalCatalogPages}
+                            </span>
+                            <button
+                                type="button"
+                                className="secondary-btn catalog-page-btn"
+                                disabled={safePage >= totalCatalogPages}
+                                onClick={() => setCatalogPage((p) => Math.min(totalCatalogPages, p + 1))}
+                            >
+                                Вперёд →
+                            </button>
+                        </div>
+                    )}
+                </>
             )}
 
             <ProductModal

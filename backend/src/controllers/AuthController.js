@@ -225,7 +225,12 @@ async login(req, res) {
                 patronymic: decryptedPatronymic,
                 phone: user.phone,
                 is_active: user.is_active,
-                two_factor_enabled: user.two_factor_enabled
+                two_factor_enabled: user.two_factor_enabled,
+                theme: user.theme || 'light',
+                catalog_page_size:
+                    [10, 15, 20].includes(Number(user.catalog_page_size))
+                        ? Number(user.catalog_page_size)
+                        : 15
             }
         });
         
@@ -521,7 +526,12 @@ async resendTwoFactorCode(req, res) {
                     patronymic: decryptedPatronymic,
                     phone: user.phone,
                     is_active: user.is_active,
-                    created_at: user.created_at
+                    created_at: user.created_at,
+                    theme: user.theme || 'light',
+                    catalog_page_size:
+                        [10, 15, 20].includes(Number(user.catalog_page_size))
+                            ? Number(user.catalog_page_size)
+                            : 15
                 }
             });
             
@@ -629,7 +639,12 @@ async resendTwoFactorCode(req, res) {
                     patronymic: decryptedPatronymic,
                     phone: user.phone,
                     is_active: user.is_active,
-                    created_at: user.created_at
+                    created_at: user.created_at,
+                    theme: user.theme || 'light',
+                    catalog_page_size:
+                        [10, 15, 20].includes(Number(user.catalog_page_size))
+                            ? Number(user.catalog_page_size)
+                            : 15
                 }
             });
             
@@ -826,6 +841,58 @@ async validateResetToken(req, res) {
         res.status(500).json({ error: 'Ошибка проверки токена' });
     }
 }
+
+    async updatePreferences(req, res) {
+        try {
+            const userId = req.user.userId;
+            const { theme, catalog_page_size } = req.body;
+            const updates = [];
+            const values = [];
+            let p = 1;
+
+            if (theme !== undefined && theme !== null && theme !== '') {
+                if (!['light', 'dark'].includes(String(theme))) {
+                    return res.status(400).json({ error: 'Тема: light или dark' });
+                }
+                updates.push(`theme = $${p++}`);
+                values.push(theme);
+            }
+            if (catalog_page_size !== undefined && catalog_page_size !== null && catalog_page_size !== '') {
+                const n = parseInt(String(catalog_page_size), 10);
+                if (![10, 15, 20].includes(n)) {
+                    return res.status(400).json({ error: 'На странице каталога: 10, 15 или 20' });
+                }
+                updates.push(`catalog_page_size = $${p++}`);
+                values.push(n);
+            }
+
+            if (updates.length === 0) {
+                return res.status(400).json({
+                    error: 'Укажите тему и/или число товаров на странице каталога'
+                });
+            }
+
+            values.push(userId);
+            await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE user_id = $${p}`, values);
+
+            const refreshed = await pool.query(
+                'SELECT theme, catalog_page_size FROM users WHERE user_id = $1',
+                [userId]
+            );
+
+            const row = refreshed.rows[0];
+            res.json({
+                message: 'Настройки сохранены',
+                theme: row.theme || 'light',
+                catalog_page_size: [10, 15, 20].includes(Number(row.catalog_page_size))
+                    ? Number(row.catalog_page_size)
+                    : 15
+            });
+        } catch (error) {
+            console.error('Ошибка сохранения настроек:', error);
+            res.status(500).json({ error: 'Ошибка сохранения настроек' });
+        }
+    }
 
 async resetPassword(req, res) {
     try {

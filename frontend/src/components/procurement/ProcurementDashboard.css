@@ -1176,7 +1176,6 @@
     font-size: 1.4rem;
 }
 
-/* ===== Стили для звездного рейтинга ===== */
 .supplier-rating-card {
     background: #f8f9fa;
     border-radius: 12px;
@@ -1245,14 +1244,6 @@
     text-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
 }
 
-.star-rating[readonly] span {
-    cursor: default;
-}
-
-.star-rating[readonly] span:hover {
-    transform: none;
-}
-
 .rating-container {
     background: #f8f9fa;
     padding: 25px;
@@ -1267,20 +1258,6 @@
     font-size: 1.2rem;
 }
 
-/* Размеры звезд */
-.star-rating.small span {
-    font-size: 18px;
-}
-
-.star-rating.medium span {
-    font-size: 24px;
-}
-
-.star-rating.large span {
-    font-size: 32px;
-}
-
-/* Анимация для звезд */
 @keyframes starPulse {
     0% { transform: scale(1); }
     50% { transform: scale(1.2); }
@@ -1291,24 +1268,6 @@
     animation: starPulse 0.3s ease;
 }
 
-/* Цвета для разных состояний */
-.star-rating .star-filled {
-    color: #ffc107;
-    opacity: 1;
-}
-
-.star-rating .star-empty {
-    color: #ffc107;
-    opacity: 0.4;
-}
-
-.star-rating .star-hover {
-    transform: scale(1.1);
-    opacity: 1;
-    text-shadow: 0 0 10px rgba(255, 193, 7, 0.8);
-}
-
-/* Информационное сообщение о рейтинге */
 .info-message {
     background: #e8f4fd;
     padding: 12px;
@@ -1330,7 +1289,6 @@
     font-size: 1rem;
 }
 
-/* ===== Конец стилей для звездного рейтинга ===== */
 
 @media (max-width: 1200px) {
     .orders-container {
@@ -1631,11 +1589,6 @@
         font-size: 1.2rem;
     }
     
-    /* Адаптация звездного рейтинга для мобильных */
-    .star-rating.large span {
-        font-size: 28px;
-    }
-    
     .rating-container {
         padding: 15px;
     }
@@ -1861,15 +1814,6 @@
         padding: 0.5rem;
     }
     
-    /* Адаптация звездного рейтинга для маленьких экранов */
-    .star-rating.large span {
-        font-size: 24px;
-    }
-    
-    .star-rating.medium span {
-        font-size: 20px;
-    }
-    
     .rating-modal {
         width: 95% !important;
         padding: 1rem !important;
@@ -1956,11 +1900,6 @@
         font-size: 0.8rem;
     }
     
-    /* Финальная адаптация звезд */
-    .star-rating.large span {
-        font-size: 22px;
-    }
-    
     .rating-container {
         padding: 8px;
     }
@@ -1968,5 +1907,624 @@
     .rating-modal p {
         font-size: 0.9rem;
     }
+}
+
+.order-management .section-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.order-management .orders-view-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.order-management .orders-view-tabs .tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: -2px;
+    font-weight: 500;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: #5a6268;
+}
+
+.order-management .orders-view-tabs .tab-btn:hover {
+    color: #2c3e50;
+    background: #f8f9fa;
+}
+
+.order-management .orders-view-tabs .tab-btn.active {
+    border-bottom-color: #3498db;
+    color: #3498db;
+    font-weight: 600;
+}
+
+.order-management .orders-archive-hint {
+    font-size: 0.88rem;
+    color: #7f8c8d;
+    margin: 0 0 1rem 0;
+    line-height: 1.45;
+    max-width: 900px;
+}
+
+.order-management .procurement-orders-toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.order-management .procurement-orders-toolbar-row .filter-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    font-size: 0.9rem;
+    color: #2c3e50;
+}
+
+.order-management .procurement-orders-toolbar-row .status-filter {
+    padding: 0.45rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid #d5dbdf;
+    background: #fff;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    min-width: 200px;
+}
+
+.order-management .orders-viewmode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.order-management .viewmode-label {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    margin-right: 0.25rem;
+}
+
+.order-management .viewmode-btn {
+    padding: 0.45rem 1rem;
+    border: 1px solid #d0d7de;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.order-management .viewmode-btn:hover {
+    background: #f0f7ff;
+    border-color: #3498db;
+}
+
+.order-management .viewmode-btn.active {
+    background: #3498db;
+    color: #fff;
+    border-color: #3498db;
+    font-weight: 600;
+}
+
+.orders-sidebar--purchase-table {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.orders-sidebar--purchase-table h3 {
+    flex-shrink: 0;
+}
+
+.purchase-table-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.purchase-orders-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    background: #fff;
+}
+
+.purchase-orders-data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #2c3e50;
+    color: #fff;
+}
+
+.purchase-orders-data-table th {
+    padding: 0.75rem 0.6rem;
+    text-align: left;
+    font-weight: 600;
+}
+
+.purchase-orders-data-table td {
+    padding: 0.65rem 0.6rem;
+    border-bottom: 1px solid #e9ecef;
+    vertical-align: middle;
+}
+
+.purchase-orders-data-table tbody tr {
+    cursor: pointer;
+}
+
+.purchase-orders-data-table tbody tr:hover {
+    background: #f8fafc;
+}
+
+.purchase-orders-data-table tbody tr.row-selected {
+    background: #e8f4fc;
+}
+
+.purchase-orders-data-table .mono {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.purchase-orders-data-table .nowrap {
+    white-space: nowrap;
+}
+
+.purchase-orders-data-table .td-name {
+    font-weight: 600;
+}
+
+.purchase-orders-data-table .table-badge {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.order-management .inline-status-select {
+    max-width: 11rem;
+    width: 100%;
+    padding: 0.35rem 0.4rem;
+    border-radius: 6px;
+    border: 1px solid #cfd8dc;
+    font-size: 0.85rem;
+    background: #fff;
+}
+
+.order-management .no-inline-action {
+    color: #bdc3c7;
+    font-size: 1rem;
+}
+
+.order-management .status-now-line {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.95rem;
+    color: #5a6268;
+}
+
+.order-management .order-details-header .order-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    min-width: 240px;
+    max-width: 100%;
+}
+
+.order-management .single-status-change {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0 0 0;
+    border-top: 1px solid #eef2f5;
+    margin-top: 0.35rem;
+}
+
+.order-management .single-status-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.order-management .status-quick-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.order-management .status-quick-btn {
+    padding: 0.45rem 0.85rem;
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #2c3e50;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.order-management .status-quick-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.25);
+}
+
+.order-management .status-quick-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.order-management .status-select-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.order-management .status-select-row label {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+}
+
+.order-management .order-item-header {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.order-management .order-item-header-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.order-management .order-checkbox-wrap {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding-top: 2px;
+    margin-right: 0;
+}
+
+.order-management .order-checkbox-wrap input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.order-management .orders-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.order-management .orders-bulk-bar .bulk-hint-warn {
+    font-size: 0.88rem;
+    color: #c0392b;
+}
+
+.order-management .orders-bulk-bar .link-like-btn {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.9rem;
+    padding: 0;
+}
+
+.order-management .bulk-status-select {
+    max-width: 14rem;
+}
+
+.order-management .cta-button.small {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.88rem;
+}
+
+.order-management .purchase-orders-data-table .col-check {
+    width: 42px;
+    text-align: center;
+}
+
+.order-management .purchase-orders-data-table .col-check input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.supplier-management .modal .checkbox-field,
+.order-management .modal .checkbox-field,
+.procurement-dashboard .modal .checkbox-field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.25rem;
+}
+
+.supplier-management .modal .checkbox-field input[type="checkbox"],
+.order-management .modal .checkbox-field input[type="checkbox"],
+.procurement-dashboard .modal .checkbox-field input[type="checkbox"] {
+    width: 1.15rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.supplier-management .modal .checkbox-field label,
+.order-management .modal .checkbox-field label,
+.procurement-dashboard .modal .checkbox-field label {
+    margin: 0;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+}
+
+.supplier-management .supplier-rating-hint {
+    background: #e8f4fd;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 0.9rem;
+    border: 1px solid #cce5ff;
+}
+
+.order-management .rating-modal-note {
+    text-align: center;
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 20px;
+}
+
+.stock-analysis .stock-rec-list-wrap {
+    margin-top: 0.5rem;
+}
+
+.stock-analysis .stock-rec-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.stock-analysis .stock-rec-card {
+    background: #fff;
+    border: 1px solid #e8eaed;
+    border-radius: 12px;
+    padding: 1rem 1.15rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.stock-analysis .stock-rec-card--critical {
+    border-left: 4px solid #e74c3c;
+}
+
+.stock-analysis .stock-rec-card--high {
+    border-left: 4px solid #f39c12;
+}
+
+.stock-analysis .stock-rec-card--medium {
+    border-left: 4px solid #3498db;
+}
+
+.stock-analysis .stock-rec-card--low {
+    border-left: 4px solid #2ecc71;
+}
+
+.stock-analysis .stock-rec-card__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem 1rem;
+    margin-bottom: 0.85rem;
+}
+
+.stock-analysis .stock-rec-card__titles {
+    flex: 1;
+    min-width: 12rem;
+}
+
+.stock-analysis .stock-rec-card__name {
+    margin: 0 0 0.25rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #2c3e50;
+    line-height: 1.3;
+}
+
+.stock-analysis .stock-rec-card__line2 {
+    margin: 0;
+    font-size: 0.88rem;
+    color: #64758b;
+}
+
+.stock-analysis .stock-rec-card__dot {
+    margin: 0 0.35rem;
+    opacity: 0.5;
+}
+
+.stock-analysis .stock-rec-card__note {
+    margin: 0.4rem 0 0;
+    font-size: 0.82rem;
+    color: #7f8c8d;
+}
+
+.stock-analysis .stock-rec-pill {
+    flex-shrink: 0;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.stock-analysis .stock-rec-pill--critical {
+    background: #e74c3c;
+}
+
+.stock-analysis .stock-rec-pill--high {
+    background: #f39c12;
+}
+
+.stock-analysis .stock-rec-pill--medium {
+    background: #3498db;
+}
+
+.stock-analysis .stock-rec-pill--low {
+    background: #27ae60;
+}
+
+.stock-analysis .stock-rec-metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+    gap: 0.65rem 1rem;
+    padding: 0.65rem 0;
+    border-top: 1px solid #eef1f4;
+    border-bottom: 1px solid #eef1f4;
+}
+
+.stock-analysis .stock-rec-metric__label {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #94a3b8;
+    margin-bottom: 0.2rem;
+}
+
+.stock-analysis .stock-rec-metric__val {
+    display: block;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: #1e293b;
+}
+
+.stock-analysis .stock-rec-metric__sub {
+    display: block;
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 0.1rem;
+}
+
+.stock-analysis .stock-rec-pace {
+    display: inline-block;
+    margin-top: 0.1rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.stock-analysis .stock-rec-pace--none {
+    background: #f1f5f9;
+    color: #475569;
+}
+
+.stock-analysis .stock-rec-pace--very_slow {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.stock-analysis .stock-rec-pace--slow {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.stock-analysis .stock-rec-pace--moderate {
+    background: #d1fae5;
+    color: #047857;
+}
+
+.stock-analysis .stock-rec-pace--fast {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.stock-analysis .stock-rec-card__verdict {
+    margin: 0.65rem 0 0;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #1d4ed8;
+}
+
+.stock-analysis .stock-rec-card__hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: #475569;
+}
+
+.stock-analysis .stock-rec-card__foot {
+    margin-top: 1rem;
+}
+
+.stock-analysis .stock-rec-cta {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 10px;
+    background: #22c55e;
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, filter 0.2s;
+}
+
+.stock-analysis .stock-rec-cta:hover:not(:disabled) {
+    background: #16a34a;
+    filter: brightness(1.02);
+}
+
+.stock-analysis .stock-rec-cta:disabled {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+}
+
+.stock-analysis .stock-rec-cta__main {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.stock-analysis .stock-rec-cta__sub {
+    font-size: 0.8rem;
+    font-weight: 500;
+    opacity: 0.95;
 }
 

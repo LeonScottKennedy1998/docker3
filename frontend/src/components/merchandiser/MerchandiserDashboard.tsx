@@ -3,10 +3,7 @@ import ProductManagement from './ProductManagement';
 import OrderManagement from './OrderManagement';
 import './Merchandiser.css';
 import AnalyticsDashboard from '../analyst/AnalystDashboard';
-
-interface MerchandiserDashboardProps {
-    defaultTab?: 'products' | 'orders' | 'analytics';
-}
+import type { MerchandiserDashboardProps } from '../../types/props';
 
 const MerchandiserDashboard: React.FC<MerchandiserDashboardProps> = ({ defaultTab = 'orders' }) => {
     const [activeTab, setActiveTab] = useState<'products' | 'orders' | 'analytics'>(defaultTab);

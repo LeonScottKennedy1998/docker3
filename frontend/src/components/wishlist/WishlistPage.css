@@ -106,6 +106,7 @@
     flex-grow: 1;
     padding: 1rem;
     display: block;
+    cursor: pointer;
 }
 
 .wishlist-product-link:hover {

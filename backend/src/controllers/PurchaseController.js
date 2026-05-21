@@ -1,6 +1,24 @@
 const pool = require('../config/database');
 const encryptionService = require('../utils/encryption');
 
+const PROCUREMENT_ARCHIVE_DAYS = 30;
+
+
+function assertPurchaseDeliveryTransition(currentId, nextId) {
+    const cur = Number(currentId);
+    const next = Number(nextId);
+    if (cur === next) return;
+    if (cur === 5) {
+        throw new Error('Отменённую заявку нельзя изменить');
+    }
+    if (cur === 4) {
+        throw new Error('Полученную заявку нельзя менять');
+    }
+    const allowed = { 1: [2, 5], 2: [3], 3: [4] };
+    if (!allowed[cur] || !allowed[cur].includes(next)) {
+        throw new Error('Недопустимый переход статуса');
+    }
+}
 
 async function updateStockFromOrder(poId, isAddition = true) {
     try {
@@ -74,7 +92,6 @@ async function updateSupplierStats(supplierId) {
 
 async function updateSupplierRating(supplierId) {
     try {
-        // Рассчитываем средний рейтинг на основе оценок из полученных закупок
         await pool.query(`
             UPDATE suppliers s
             SET rating = COALESCE((
@@ -90,6 +107,126 @@ async function updateSupplierRating(supplierId) {
     } catch (error) {
         console.error('❌ Ошибка обновления рейтинга поставщика:', error);
     }
+}
+
+const PURCHASE_PACE_LABELS = {
+    none: 'Нет продаж (в учётном периоде)',
+    very_slow: 'Очень медленные продажи',
+    slow: 'Медленные продажи',
+    moderate: 'Умеренный спрос',
+    fast: 'Хорошо продаётся'
+};
+
+function monthlyVelocityUnitsPerMonth(sold90, sold365) {
+    const s90 = Number(sold90) || 0;
+    const s365 = Number(sold365) || 0;
+    if (s90 > 0) return s90 / 3;
+    if (s365 > 0) return s365 / 12;
+    return 0;
+}
+
+function salesPaceKey(monthly) {
+    if (monthly <= 0) return 'none';
+    if (monthly < 0.15) return 'very_slow';
+    if (monthly < 0.85) return 'slow';
+    if (monthly < 4) return 'moderate';
+    return 'fast';
+}
+
+function recommendedQtyFromVelocity(stock, monthly, stockLevel) {
+    const s = Number(stock) || 0;
+    const m = Number(monthly) || 0;
+    const critical = stockLevel === 'КРИТИЧЕСКИЙ';
+
+    if (m < 0.12 && s > 0) {
+        const piece = Math.min(8, Math.max(2, Math.ceil(m * 36) - s));
+        return Math.max(1, piece);
+    }
+
+    const safety = m >= 4 ? 6 : m >= 1 ? 4 : m >= 0.2 ? 3 : 2;
+    const monthsCover = m < 0.15 ? 6 : 4;
+    const target = Math.ceil(m * monthsCover) + safety;
+    let qty = Math.max(0, target - s);
+
+    if (s === 0) {
+        qty = Math.max(qty, m >= 0.85 ? 12 : m >= 0.25 ? 6 : 3);
+    }
+    if (critical && m >= 1.2 && qty < 10) qty = Math.max(qty, 10);
+
+    return qty;
+}
+
+function procurementHintText(stockLevel, paceKey, monthly, stock, sold365, monthsCover) {
+    const m = monthly;
+    const s = stock;
+    const cov = monthsCover != null && Number.isFinite(monthsCover) ? monthsCover : null;
+
+    if (paceKey === 'none') {
+        return 'За год нет продаж по заказам клиентов. Низкий остаток не всегда значит срочную крупную закупку — оцените спрос вручную или возьмите минимальную партию.';
+    }
+    if (paceKey === 'very_slow') {
+        if (cov != null) {
+            const monthsRounded = Math.round(Math.max(0.1, cov) * 10) / 10;
+            return `При текущем темпе продаж запаса хватит примерно на ${monthsRounded} мес. Крупная закупка может привести к залёживанию — логичнее небольшая партия.`;
+        }
+        return 'Очень низкий темп продаж — разумна точечная закупка небольшой партии, а не опт на много месяцев вперёд.';
+    }
+    if (paceKey === 'slow') {
+        return 'Товар продаётся умеренно редко. Ориентируйтесь на продажи за квартал и последнюю дату продажи, а не только на «критичный» остаток.';
+    }
+    if (paceKey === 'fast' && (stockLevel === 'КРИТИЧЕСКИЙ' || stockLevel === 'НИЗКИЙ')) {
+        return 'Хорошая оборачиваемость — имеет смысл пополнить запас с небольшим запасом на пик спроса.';
+    }
+    if ((stockLevel === 'КРИТИЧЕСКИЙ' || stockLevel === 'НИЗКИЙ') && sold365 > 0) {
+        return 'Следите за остатком: при низком складе и стабильных продажах лучше не затягивать с пополнением.';
+    }
+    return 'Совет основан на фактических продажах (предзаказы) и текущем остатке; решение за менеджером.';
+}
+
+function enrichPurchaseRecommendationRow(row) {
+    const sold90 = Number(row.sold_90_days) || 0;
+    const sold365 = Number(row.sold_365_days) || 0;
+    const stock = Number(row.stock) || 0;
+    const stockLevel = row.stock_level;
+    const monthly = monthlyVelocityUnitsPerMonth(sold90, sold365);
+    const paceKey = salesPaceKey(monthly);
+    const monthsCover = monthly > 0.02 ? stock / monthly : null;
+
+    let estimatedDays = 365;
+    if (monthly > 0.02) {
+        estimatedDays = Math.min(365, Math.max(1, Math.round((stock / monthly) * 30)));
+    } else if (stock === 0) {
+        estimatedDays = 0;
+    }
+
+    const recommendedQty = recommendedQtyFromVelocity(stock, monthly, stockLevel);
+
+    let recommendation = 'ПЛАНОВАЯ ЗАКУПКА';
+    if (stockLevel === 'КРИТИЧЕСКИЙ' && (paceKey === 'fast' || paceKey === 'moderate')) {
+        recommendation = 'СРОЧНАЯ ЗАКУПКА';
+    } else if (stockLevel === 'КРИТИЧЕСКИЙ' && (paceKey === 'very_slow' || paceKey === 'slow' || paceKey === 'none')) {
+        recommendation = 'ТОЧЕЧНОЕ ПОПОЛНЕНИЕ';
+    } else if (stockLevel === 'НИЗКИЙ') {
+        recommendation = paceKey === 'fast' ? 'ПЛАНОВАЯ / УСКОРИТЬ' : 'ПЛАНОВАЯ ЗАКУПКА';
+    } else {
+        recommendation = 'ОСТАТОК ПОД КОНТРОЛЕМ';
+    }
+
+    const procurementHint = procurementHintText(stockLevel, paceKey, monthly, stock, sold365, monthsCover);
+
+    return {
+        ...row,
+        sold_90_days: sold90,
+        sold_365_days: sold365,
+        monthly_velocity: Math.round(monthly * 100) / 100,
+        sales_pace: paceKey,
+        sales_pace_label: PURCHASE_PACE_LABELS[paceKey] || PURCHASE_PACE_LABELS.moderate,
+        months_of_cover: monthsCover != null ? Math.round(monthsCover * 10) / 10 : null,
+        estimated_usage_days: estimatedDays,
+        recommended_qty: recommendedQty,
+        recommendation,
+        procurement_hint: procurementHint
+    };
 }
 
 
@@ -139,7 +276,6 @@ class PurchaseController {
                 return res.status(400).json({ error: 'Название поставщика обязательно' });
             }
             
-            // Убрали rating из запроса, ставим 0 по умолчанию
             const result = await pool.query(
                 `INSERT INTO suppliers 
                  (name, contact_person, email, phone, rating)
@@ -170,11 +306,9 @@ class PurchaseController {
     async updateSupplier(req, res) {
         try {
             const { supplierId } = req.params;
-            // Убрали rating из деструктуризации
             const { name, contact_person, email, phone, is_active } = req.body;
             const userId = req.user.userId;
             
-            // Убрали rating из обновления
             const result = await pool.query(
                 `UPDATE suppliers 
                  SET name = COALESCE($1, name),
@@ -212,7 +346,24 @@ class PurchaseController {
     
     async getPurchaseOrders(req, res) {
         try {
-            const result = await pool.query(`
+            const archive = req.query.archive === 'true';
+            const archiveClause = archive
+                ? `AND po.created_at < NOW() - INTERVAL '${PROCUREMENT_ARCHIVE_DAYS} days'`
+                : `AND po.created_at >= NOW() - INTERVAL '${PROCUREMENT_ARCHIVE_DAYS} days'`;
+
+            let statusClause = '';
+            const params = [];
+            const rawStatus = req.query.status_id;
+            if (rawStatus !== undefined && rawStatus !== '') {
+                const sid = parseInt(rawStatus, 10);
+                if (!Number.isNaN(sid)) {
+                    statusClause = ' AND po.delivery_status_id = $1';
+                    params.push(sid);
+                }
+            }
+
+            const result = await pool.query(
+                `
                 SELECT 
                     po.*,
                     s.name as supplier_name,
@@ -226,10 +377,15 @@ class PurchaseController {
                 JOIN delivery_status ds ON po.delivery_status_id = ds.status_id
                 JOIN users u ON po.manager_id = u.user_id
                 LEFT JOIN purchase_order_items poi ON po.po_id = poi.purchase_order_id
+                WHERE 1=1
+                ${archiveClause}
+                ${statusClause}
                 GROUP BY po.po_id, s.name, s.contact_person, s.phone, ds.status_name, u.first_name, u.last_name
                 ORDER BY po.created_at DESC
-            `);
-            
+            `,
+                params
+            );
+
             res.json(result.rows);
         } catch (error) {
             console.error('Ошибка получения заявок:', error);
@@ -326,7 +482,7 @@ class PurchaseController {
     async updateOrderStatus(req, res) {
         try {
             const { poId } = req.params;
-            const { delivery_status_id, rating } = req.body; // Добавили rating
+            const { delivery_status_id, rating } = req.body;
             const userId = req.user.userId;
             
             if (!delivery_status_id) {
@@ -346,21 +502,25 @@ class PurchaseController {
             
             const currentStatus = currentOrder.rows[0].delivery_status_id;
             const supplierId = currentOrder.rows[0].supplier_id;
+            const nextStatus = parseInt(delivery_status_id, 10);
+
+            try {
+                assertPurchaseDeliveryTransition(currentStatus, nextStatus);
+            } catch (validationError) {
+                return res.status(400).json({ error: validationError.message });
+            }
             
             await pool.query('BEGIN');
             
-            // Обновляем статус
             const result = await pool.query(
                 `UPDATE purchase_orders 
                  SET delivery_status_id = $1, updated_at = NOW()
                  WHERE po_id = $2
                  RETURNING *`,
-                [delivery_status_id, poId]
+                [nextStatus, poId]
             );
             
-            // Если статус меняется на "Получена" (4) и передан рейтинг
-            if (delivery_status_id === 4 && rating) {
-                // Проверяем, не ставили ли уже оценку для этой заявки
+            if (nextStatus === 4 && rating) {
                 const existingRating = await pool.query(
                     `SELECT * FROM supplier_ratings 
                      WHERE purchase_order_id = $1`,
@@ -368,7 +528,6 @@ class PurchaseController {
                 );
                 
                 if (existingRating.rows.length === 0) {
-                    // Сохраняем оценку
                     await pool.query(
                         `INSERT INTO supplier_ratings 
                          (supplier_id, purchase_order_id, user_id, rating, created_at)
@@ -380,21 +539,19 @@ class PurchaseController {
                 }
             }
             
-            // Логика обновления остатков
-            if (currentStatus === 4 && delivery_status_id !== 4) {
-                console.log(`↩️ Вычитаем остатки (статус меняется с 4 на ${delivery_status_id})`);
+            if (currentStatus === 4 && nextStatus !== 4) {
+                console.log(`↩️ Вычитаем остатки (статус меняется с 4 на ${nextStatus})`);
                 await updateStockFromOrder(poId, false);
             }
-            else if (delivery_status_id === 4 && currentStatus !== 4) {
+            else if (nextStatus === 4 && currentStatus !== 4) {
                 console.log(`➕ Добавляем остатки (статус меняется на 4)`);
                 await updateStockFromOrder(poId, true);
             }
-            else if (delivery_status_id === 5 && currentStatus === 4) {
+            else if (nextStatus === 5 && currentStatus === 4) {
                 console.log(`✖️ Отмена заявки - вычитаем остатки`);
                 await updateStockFromOrder(poId, false);
             }
             
-            // Обновляем рейтинг поставщика на основе всех оценок
             await updateSupplierRating(supplierId);
             
             await pool.query('COMMIT');
@@ -406,13 +563,12 @@ class PurchaseController {
                 [userId, poId, 
                  JSON.stringify({ 
                      from_status: currentStatus,
-                     to_status: delivery_status_id,
+                     to_status: nextStatus,
                      supplier_id: supplierId,
                      rating: rating || null
                  })]
             );
             
-            // Получаем обновленный рейтинг поставщика для ответа
             const supplierRating = await pool.query(
                 `SELECT rating FROM suppliers WHERE supplier_id = $1`,
                 [supplierId]
@@ -422,8 +578,8 @@ class PurchaseController {
                 message: 'Статус обновлен',
                 purchase_order: result.rows[0],
                 supplier_rating: supplierRating.rows[0]?.rating || 0,
-                stock_updated: (currentStatus === 4 && delivery_status_id !== 4) || 
-                              (delivery_status_id === 4 && currentStatus !== 4)
+                stock_updated: (currentStatus === 4 && nextStatus !== 4) || 
+                              (nextStatus === 4 && currentStatus !== 4)
             });
             
         } catch (error) {
@@ -565,71 +721,63 @@ async getStockAnalysis(req, res) {
         res.status(500).json({ error: 'Ошибка анализа склада' });
     }
 }
+
     async getPurchaseRecommendations(req, res) {
-    try {
-        const result = await pool.query(`
-            WITH sales_data AS (
+        try {
+            const result = await pool.query(`
+            WITH product_sales AS (
                 SELECT 
-                    p.product_id,
-                    p.product_name,
-                    p.stock,
-                    p.category_id,
-                    c.category_name,
-                    COALESCE(SUM(pi.quantity), 0) as sold_last_month,
-                    COALESCE(AVG(pi.quantity), 0) as avg_monthly_sales
-                FROM products p
-                JOIN categories c ON p.category_id = c.category_id
-                LEFT JOIN preorder_items pi ON p.product_id = pi.product_id
-                LEFT JOIN preorders pr ON pi.preorder_id = pr.pr_id
-                    AND pr.created_at >= NOW() - INTERVAL '60 days'
-                    AND pr.status_id != 3
-                WHERE p.is_active = true
-                GROUP BY p.product_id, p.product_name, p.stock, p.category_id, c.category_name
+                    pi.product_id,
+                    COALESCE(SUM(CASE WHEN pr.created_at >= NOW() - INTERVAL '90 days' AND pr.status_id != 3 THEN pi.quantity ELSE 0 END), 0) AS sold_90_days,
+                    COALESCE(SUM(CASE WHEN pr.created_at >= NOW() - INTERVAL '365 days' AND pr.status_id != 3 THEN pi.quantity ELSE 0 END), 0) AS sold_365_days,
+                    MAX(CASE WHEN pr.status_id != 3 THEN pr.created_at END) AS last_sale_at,
+                    COUNT(DISTINCT CASE WHEN pr.created_at >= NOW() - INTERVAL '365 days' AND pr.status_id != 3 THEN pr.pr_id END) AS orders_365_days
+                FROM preorder_items pi
+                INNER JOIN preorders pr ON pi.preorder_id = pr.pr_id
+                GROUP BY pi.product_id
             )
             SELECT 
-                sd.*,
-                14 as avg_lead_time, -- фиксированное значение вместо расчета
+                p.product_id,
+                p.product_name,
+                p.stock,
+                p.price,
+                p.category_id,
+                c.category_name,
+                COALESCE(ps.sold_90_days, 0)::integer AS sold_90_days,
+                COALESCE(ps.sold_365_days, 0)::integer AS sold_365_days,
+                COALESCE(ps.orders_365_days, 0)::integer AS orders_365_days,
+                ps.last_sale_at,
+                14 AS avg_lead_time,
                 CASE 
-                    WHEN sd.stock <= 5 THEN 'КРИТИЧЕСКИЙ'
-                    WHEN sd.stock <= 10 THEN 'НИЗКИЙ'
-                    WHEN sd.stock <= 20 THEN 'НОРМАЛЬНЫЙ'
+                    WHEN p.stock <= 5 THEN 'КРИТИЧЕСКИЙ'
+                    WHEN p.stock <= 10 THEN 'НИЗКИЙ'
+                    WHEN p.stock <= 20 THEN 'НОРМАЛЬНЫЙ'
                     ELSE 'ВЫСОКИЙ'
-                END as stock_level,
-                CASE 
-                    WHEN sd.stock <= 5 THEN 
-                        GREATEST(CEIL(sd.avg_monthly_sales * 3), 20)
-                    WHEN sd.stock <= 10 THEN 
-                        GREATEST(CEIL(sd.avg_monthly_sales * 2), 15)
-                    ELSE 
-                        GREATEST(CEIL(sd.avg_monthly_sales * 1.5 - sd.stock), 10)
-                END as recommended_qty,
-                CASE 
-                    WHEN sd.stock <= 5 THEN 'СРОЧНАЯ ЗАКУПКА'
-                    WHEN sd.stock <= 10 THEN 'ПЛАНОВАЯ ЗАКУПКА'
-                    ELSE 'ОСТАТОК ДОСТАТОЧНЫЙ'
-                END as recommendation
-            FROM sales_data sd
-            WHERE sd.stock <= 20
+                END AS stock_level
+            FROM products p
+            JOIN categories c ON p.category_id = c.category_id
+            LEFT JOIN product_sales ps ON p.product_id = ps.product_id
+            WHERE p.is_active = true AND p.stock <= 20
             ORDER BY 
                 CASE 
-                    WHEN sd.stock <= 5 THEN 1
-                    WHEN sd.stock <= 10 THEN 2
+                    WHEN p.stock <= 5 THEN 1
+                    WHEN p.stock <= 10 THEN 2
                     ELSE 3
                 END,
-                sd.sold_last_month DESC
-            LIMIT 15
-        `);
-        
-        console.log('Рекомендации найдены:', result.rows.length);
-        
-        res.json(Array.isArray(result.rows) ? result.rows : []);
-        
-    } catch (error) {
-        console.error('Ошибка получения рекомендаций:', error);
-        res.status(500).json({ error: 'Ошибка получения рекомендаций' });
+                COALESCE(ps.sold_90_days, 0) DESC NULLS LAST,
+                p.stock ASC
+            LIMIT 40
+            `);
+
+            const enriched = result.rows.map(enrichPurchaseRecommendationRow);
+            console.log('Рекомендации найдены:', enriched.length);
+            res.json(enriched);
+        } catch (error) {
+            console.error('Ошибка получения рекомендаций:', error);
+            res.status(500).json({ error: 'Ошибка получения рекомендаций' });
+        }
     }
-}
-    
+
     async getDeliveryStatuses(req, res) {
         try {
             const result = await pool.query('SELECT * FROM delivery_status ORDER BY status_id');

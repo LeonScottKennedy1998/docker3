@@ -266,6 +266,35 @@
     gap: 1.5rem;
 }
 
+.merchandiser-page .modal .checkbox-field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.merchandiser-page .modal .checkbox-field input[type="checkbox"] {
+    width: 1.15rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.merchandiser-page .modal .checkbox-field label {
+    margin: 0;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+}
+
 .modal textarea {
     resize: vertical;
     min-height: 100px;
@@ -315,9 +344,11 @@
 
 .orders-container {
     display: grid;
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: minmax(360px, 48%) 1fr;
     gap: 2rem;
-    height: 700px;
+    min-height: 420px;
+    height: calc(100vh - 200px);
+    max-height: 920px;
     background: #f8f9fa;
     padding: 1.5rem;
     border-radius: 12px;
@@ -706,14 +737,6 @@
 
 .products-table-container table {
     margin-bottom: 0;
-}
-
-.merchandiser-table tbody tr {
-    transition: all 0.2s;
-}
-
-.merchandiser-table tbody tr:hover {
-    background: #f8f9fa;
 }
 
 .modal input[type="number"] {
@@ -1634,10 +1657,6 @@
     border-bottom: 1px solid #eaeaea;
 }
 
-.preview-table tr:hover {
-    background: #f8f9fa;
-}
-
 .new-price {
     color: #27ae60;
     font-weight: bold;
@@ -2254,7 +2273,6 @@
     }
 }
 
-/* ===== НОВЫЕ СТИЛИ ДЛЯ КАТЕГОРИЙ ===== */
 .categories-container {
     padding: 1rem 0;
 }
@@ -2393,7 +2411,6 @@
     color: #9e9e9e;
 }
 
-/* Адаптив для категорий */
 @media (max-width: 768px) {
     .categories-grid {
         grid-template-columns: 1fr;
@@ -2419,7 +2436,6 @@
     }
 }
 
-/* ===== НОВЫЕ СТИЛИ ДЛЯ ФИЛЬТРОВ ===== */
 .filters-panel {
     background: white;
     border-radius: 12px;
@@ -2538,7 +2554,6 @@
     font-size: 1rem;
 }
 
-/* Индикатор остатка (новый, но совместимый) */
 .stock-badge {
     display: inline-block;
     padding: 0.4rem 1rem;
@@ -2567,7 +2582,6 @@
     border: 1px solid #ef9a9a;
 }
 
-/* Адаптив для фильтров */
 @media (max-width: 768px) {
     .filters-panel {
         padding: 1rem;
@@ -2599,10 +2613,6 @@
     }
 }
 
-/* ===== УЛУЧШЕНИЯ ДЛЯ СУЩЕСТВУЮЩИХ КОМПОНЕНТОВ ===== */
-/* Не перебивают существующие стили, а дополняют */
-
-/* Улучшенный пустой стейт для категорий */
 .empty-state {
     text-align: center;
     padding: 4rem 2rem;
@@ -2625,14 +2635,12 @@
     margin: 0 auto;
 }
 
-/* Улучшенный модальное окно для категорий */
 .modal:not(.wide-modal) .form-group textarea {
     min-height: 100px;
     resize: vertical;
     font-family: inherit;
 }
 
-/* Индикация активных фильтров */
 .filters-active {
     display: flex;
     flex-wrap: wrap;
@@ -2668,7 +2676,6 @@
     color: #c62828;
 }
 
-/* Результаты поиска с подсветкой */
 .search-highlight {
     background-color: #fff9c4;
     padding: 0 2px;
@@ -2676,7 +2683,6 @@
     font-weight: 500;
 }
 
-/* Количество найденных товаров */
 .results-count {
     background: #e3f2fd;
     color: #1976d2;
@@ -2686,7 +2692,6 @@
     font-weight: 500;
 }
 
-/* Стили для карточек товаров в разделе скидок (улучшенные) */
 .products-for-discount {
     margin-top: 2.5rem;
     padding-top: 2rem;
@@ -2790,14 +2795,10 @@
     box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
 }
 
-/* ===== ГАРАНТИЯ, ЧТО СУЩЕСТВУЮЩИЕ СТИЛИ НЕ ПЕРЕБИВАЮТСЯ ===== */
-/* Явно сохраняем стили кнопок действий */
 
-/* Сохраняем стили для edit-btn, deactivate-btn, activate-btn */
 .action-buttons .edit-btn,
 .action-buttons .deactivate-btn,
 .action-buttons .activate-btn {
-    /* Оставляем без изменений, только добавляем hover эффекты если нужно */
     transition: all 0.3s;
 }
 
@@ -2807,15 +2808,12 @@
     transform: translateY(-2px);
 }
 
-/* Убеждаемся, что наши новые стили не влияют на существующие кнопки */
 .category-actions .edit-btn,
 .category-actions .danger-btn {
-    /* Эти стили применяются только внутри category-actions */
     width: 40px;
     height: 40px;
 }
 
-/* Сбрасываем возможные конфликты */
 .merchandiser-page .category-actions .edit-btn {
     width: 40px;
     height: 40px;
@@ -2828,7 +2826,6 @@
     padding: 0.75rem 1.5rem;
 }
 
-/* Сохраняем оригинальные градиенты для кнопок */
 .merchandiser-page .edit-btn {
     background: linear-gradient(135deg, #3498db, #2980b9) !important;
 }
@@ -2841,7 +2838,6 @@
     background: linear-gradient(135deg, #2ecc71, #27ae60) !important;
 }
 
-/* Стили для активных фильтров в заголовке */
 .page-header .filter-summary {
     background: #f8f9fa;
     padding: 0.75rem 1.5rem;
@@ -2855,7 +2851,6 @@
     color: #3498db;
 }
 
-/* Дополнительные адаптивные улучшения */
 @media (max-width: 768px) {
     .products-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -2884,7 +2879,6 @@
     }
 }
 
-/* Анимации для фильтров */
 @keyframes slideDown {
     from {
         opacity: 0;
@@ -2900,9 +2894,323 @@
     animation: slideDown 0.3s ease;
 }
 
-/* Стили для подсветки поиска */
 mark {
     background-color: #fff9c4;
     padding: 0 2px;
     border-radius: 2px;
+}
+
+.orders-view-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.merchandiser-page .orders-view-tabs .tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: -2px;
+    font-weight: 500;
+}
+
+.merchandiser-page .orders-view-tabs .tab-btn.active {
+    border-bottom-color: #3498db;
+    color: #3498db;
+    font-weight: 600;
+}
+
+.orders-archive-hint {
+    font-size: 0.88rem;
+    color: #7f8c8d;
+    margin: 0 0 1rem 0;
+    line-height: 1.45;
+    max-width: 900px;
+}
+
+.orders-bulk-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem 1rem;
+    background: #f8f9fa;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 1rem;
+}
+
+.orders-bulk-bar .bulk-hint-warn {
+    font-size: 0.88rem;
+    color: #c0392b;
+}
+
+.orders-bulk-bar .link-like-btn {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: 0.9rem;
+    padding: 0;
+}
+
+.cta-button.small {
+    padding: 0.4rem 0.9rem;
+    font-size: 0.88rem;
+}
+
+.order-checkbox-wrap {
+    margin-right: 0.35rem;
+    display: flex;
+    align-items: center;
+}
+
+.order-checkbox-wrap input {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.status-now-line {
+    margin: 0.35rem 0 0 0;
+    font-size: 0.92rem;
+    color: #555;
+}
+
+.no-transitions-msg {
+    font-size: 0.88rem;
+    color: #95a5a6;
+    padding: 0.35rem 0;
+}
+
+.orders-toolbar-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.orders-viewmode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.viewmode-label {
+    font-size: 0.9rem;
+    color: #7f8c8d;
+    margin-right: 0.25rem;
+}
+
+.viewmode-btn {
+    padding: 0.45rem 1rem;
+    border: 1px solid #d0d7de;
+    background: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.viewmode-btn:hover {
+    background: #f0f7ff;
+    border-color: #3498db;
+}
+
+.viewmode-btn.active {
+    background: #3498db;
+    color: #fff;
+    border-color: #3498db;
+    font-weight: 600;
+}
+
+.orders-list-sidebar--table {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.orders-list-sidebar--table h3 {
+    flex-shrink: 0;
+}
+
+.orders-table-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.orders-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    background: #fff;
+}
+
+.orders-data-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #2c3e50;
+    color: #fff;
+}
+
+.orders-data-table th {
+    padding: 0.65rem 0.5rem;
+    text-align: left;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.orders-data-table td {
+    padding: 0.55rem 0.5rem;
+    border-bottom: 1px solid #eef2f5;
+    vertical-align: middle;
+}
+
+.orders-data-table tbody tr {
+    cursor: pointer;
+    transition: background 0.12s;
+}
+
+.orders-data-table tbody tr:hover {
+    background: #f0f7ff;
+}
+
+.orders-data-table tbody tr.row-selected {
+    background: #e3f2fd;
+}
+
+.orders-data-table .col-check {
+    width: 36px;
+    text-align: center;
+}
+
+.orders-data-table .mono {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.orders-data-table .nowrap {
+    white-space: nowrap;
+}
+
+.orders-data-table .td-client {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    max-width: 220px;
+}
+
+.orders-data-table .td-name {
+    font-weight: 600;
+    color: #2c3e50;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.orders-data-table .td-sub {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+.orders-data-table .table-badge {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.45rem;
+}
+
+.inline-status-select {
+    max-width: 11rem;
+    width: 100%;
+    padding: 0.35rem 0.4rem;
+    border-radius: 6px;
+    border: 1px solid #cfd8dc;
+    font-size: 0.85rem;
+    background: #fff;
+}
+
+.no-inline-action {
+    color: #bdc3c7;
+    font-size: 1rem;
+}
+
+.order-details-header .order-actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    min-width: 240px;
+    max-width: 100%;
+}
+
+.single-status-change {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 0 0 0;
+    border-top: 1px solid #eef2f5;
+    margin-top: 0.35rem;
+}
+
+.single-status-label {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.status-quick-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.status-quick-btn {
+    padding: 0.45rem 0.85rem;
+    border: 2px solid #3498db;
+    border-radius: 8px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #2c3e50;
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.status-quick-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(52, 152, 219, 0.25);
+}
+
+.status-select-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-select-row label {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+}
+
+.merchandiser-page .modal .form-hint {
+    font-size: 0.85rem;
+    color: #7f8c8d;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.35;
+}
+
+.merchandiser-page .modal .form-row.align-end {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: flex-end;
 }

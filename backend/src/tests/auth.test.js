@@ -6,16 +6,13 @@ const jwt = require('jsonwebtoken');
 process.env.JWT_SECRET = 'test_secret_key_for_jwt_tokens_12345';
 process.env.JWT_EXPIRES_IN = '24h';
 
-// Мокаем pool
 jest.mock('../config/database', () => ({
     query: jest.fn()
 }));
 
-// Сохраняем оригинальные функции
 const originalLog = console.log;
 const originalError = console.error;
 
-// Подменяем на моки
 console.log = jest.fn();
 console.error = jest.fn();
 
@@ -25,12 +22,10 @@ describe('Модуль аутентификации', () => {
     });
     
     afterAll(() => {
-        // Восстанавливаем оригиналы
         console.log = originalLog;
         console.error = originalError;
     });
 
-    // ===== ТЕСТЫ TOKEN.JS =====
     describe('token.js', () => {
         test('Генерация токена с корректными данными', () => {
             const userId = 123;
@@ -67,17 +62,16 @@ describe('Модуль аутентификации', () => {
                 { expiresIn: '-1s' }
             );
             
-            expect(() => verifyToken(expiredToken)).toThrow('jwt expired'); // ← изменил текст
+            expect(() => verifyToken(expiredToken)).toThrow('jwt expired');
         });
         
         test('Ошибка при повреждённом токене', () => {
             const invalidToken = 'invalid.token.string';
             
-            expect(() => verifyToken(invalidToken)).toThrow('invalid token'); // ← изменил текст
+            expect(() => verifyToken(invalidToken)).toThrow('invalid token');
         });
     });
 
-    // ===== ТЕСТЫ AUTH MIDDLEWARE =====
     describe('authMiddleware', () => {
         let req, res, next;
 
@@ -192,7 +186,6 @@ describe('Модуль аутентификации', () => {
         });
     });
 
-    // ===== ТЕСТЫ ROLE MIDDLEWARE =====
     describe('roleMiddleware', () => {
         let req, res, next;
 

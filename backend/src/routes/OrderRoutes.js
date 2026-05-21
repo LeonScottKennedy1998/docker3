@@ -16,16 +16,16 @@ router.get('/my-orders',
     orderController.getUserOrders
 );
 
-router.get('/:id', 
-    authMiddleware, 
-    roleMiddleware('Клиент'), 
-    orderController.getOrderDetails
-);
-
 router.get('/admin/all', 
     authMiddleware, 
     roleMiddleware('Товаровед'), 
     orderController.getAllOrders
+);
+
+router.patch('/admin/batch-status',
+    authMiddleware,
+    roleMiddleware('Товаровед'),
+    orderController.batchUpdateOrderStatus
 );
 
 router.get('/admin/:id', 
@@ -40,7 +40,17 @@ router.patch('/admin/:id/status',
     orderController.updateOrderStatus
 );
 
+router.get('/statuses', 
+    authMiddleware, 
+    roleMiddleware('Товаровед', 'Администратор'), 
+    orderController.getOrderStatuses
+);
 
+router.get('/:id', 
+    authMiddleware, 
+    roleMiddleware('Клиент'), 
+    orderController.getOrderDetails
+);
 
 
 module.exports = router;

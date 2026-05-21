@@ -1,135 +1,267 @@
 const pool = require('../config/database');
 const nodemailer = require('nodemailer');
 
-class OrderController {
-    async createOrder(req, res) {
-    try {
-        const userId = req.user.userId;
-        const { items, phone } = req.body;
-        
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ error: 'Корзина пуста' });
-        }
-        
-        let total = 0;
-        const orderItems = [];
-        
-        for (const item of items) {
-            const productResult = await pool.query(
-                'SELECT product_id, price, stock, product_name FROM products WHERE product_id = $1 AND is_active = true',
-                [item.productId]
-            );
-            
-            if (productResult.rows.length === 0) {
-                return res.status(400).json({ 
-                    error: `Товар с ID ${item.productId} не найден` 
-                });
-            }
-            
-            const product = productResult.rows[0];
-            
-            if (product.stock < item.quantity) {
-                return res.status(400).json({ 
-                    error: `Недостаточно товара "${product.product_name}" на складе. Доступно: ${product.stock} шт.` 
-                });
-            }
-            
-            let itemPrice = product.price;
-            
-            const discountResult = await pool.query(`
-                SELECT discount_percent 
-                FROM discounts 
-                WHERE product_id = $1 
-                AND (end_date IS NULL OR end_date > NOW())
-                ORDER BY created_at DESC 
-                LIMIT 1
-            `, [item.productId]);
-            
-            if (discountResult.rows.length > 0) {
-                const discountPercent = discountResult.rows[0].discount_percent;
-                if (discountPercent > 0 && discountPercent <= 100) {
-                    itemPrice = product.price * (1 - discountPercent / 100);
-                    itemPrice = Math.round(itemPrice * 100) / 100;
-                }
-            }
-            
-            const itemTotal = itemPrice * item.quantity;
-            total += itemTotal;
-            
-            orderItems.push({
-                product_id: product.product_id,
-                product_name: product.product_name,
-                quantity: item.quantity,
-                price: itemPrice,
-                itemTotal: itemTotal
-            });
-        }
-        
-        const userResult = await pool.query(
-            'SELECT email, first_name, last_name FROM users WHERE user_id = $1',
-            [userId]
+const MERCHANDISER_ARCHIVE_DAYS = 30;
+
+
+const ORDER_STATUS_TRANSITIONS = {
+    'В обработке': ['Подтвержден', 'Отменен'],
+    'Подтвержден': ['Выдан'],
+    'Отменен': [],
+    'Выдан': []
+};
+
+function isOrderTransitionAllowed(fromStatusName, toStatusName) {
+    if (!fromStatusName || !toStatusName) return false;
+    if (fromStatusName === toStatusName) return true;
+    const allowed = ORDER_STATUS_TRANSITIONS[fromStatusName];
+    return Array.isArray(allowed) && allowed.includes(toStatusName);
+}
+
+/**
+ * @param {import('pg').Pool|import('pg').PoolClient} db
+ */
+async function executeOrderStatusUpdate(db, orderId, newStatusName, adminUserId) {
+    const statusResult = await db.query(
+        'SELECT ps_id, ps_name FROM preorder_status WHERE ps_name = $1',
+        [newStatusName]
+    );
+
+    if (statusResult.rows.length === 0) {
+        throw new Error('Неверный статус');
+    }
+
+    const statusId = statusResult.rows[0].ps_id;
+    const resolvedNewName = statusResult.rows[0].ps_name;
+
+    const currentOrder = await db.query(
+        'SELECT status_id FROM preorders WHERE pr_id = $1 FOR UPDATE',
+        [orderId]
+    );
+
+    if (currentOrder.rows.length === 0) {
+        throw new Error('Заказ не найден');
+    }
+
+    const oldStatusId = currentOrder.rows[0].status_id;
+
+    if (oldStatusId === statusId) {
+        const ns = await db.query('SELECT ps_name FROM preorder_status WHERE ps_id = $1', [statusId]);
+        return {
+            unchanged: true,
+            newStatusName: ns.rows[0]?.ps_name || newStatusName
+        };
+    }
+
+    const oldStatusResult = await db.query(
+        'SELECT ps_name FROM preorder_status WHERE ps_id = $1',
+        [oldStatusId]
+    );
+    const oldStatusName = oldStatusResult.rows[0]?.ps_name || 'Неизвестно';
+
+    if (!isOrderTransitionAllowed(oldStatusName, newStatusName)) {
+        throw new Error(`Переход «${oldStatusName}» → «${newStatusName}» невозможен`);
+    }
+
+    const result = await db.query(
+        `UPDATE preorders 
+         SET status_id = $1, updated_at = NOW()
+         WHERE pr_id = $2
+         RETURNING pr_id as id, total, updated_at`,
+        [statusId, orderId]
+    );
+
+    if (resolvedNewName === 'Отменен') {
+        const items = await db.query(
+            `SELECT pi.product_id, pi.quantity
+             FROM preorder_items pi
+             WHERE pi.preorder_id = $1`,
+            [orderId]
         );
-        
-        if (userResult.rows.length === 0) {
-            return res.status(404).json({ error: 'Пользователь не найден' });
-        }
-        
-        const user = userResult.rows[0];
-        
-        const orderResult = await pool.query(
-            `INSERT INTO preorders 
-             (user_id, status_id, total, phone, created_at, updated_at)
-             VALUES ($1, 1, $2, $3, NOW(), NOW())
-             RETURNING pr_id as id, total, created_at`,
-            [userId, total, phone || req.user.phone]
-        );
-        
-        const orderId = orderResult.rows[0].id;
-        
-        for (const item of orderItems) {
-            await pool.query(
-                `INSERT INTO preorder_items 
-                 (preorder_id, product_id, quantity, price)
-                 VALUES ($1, $2, $3, $4)`,
-                [orderId, item.product_id, item.quantity, item.price]
-            );
-            
-            await pool.query(
+
+        for (const item of items.rows) {
+            await db.query(
                 `UPDATE products 
-                 SET stock = stock - $1
+                 SET stock = stock + $1
                  WHERE product_id = $2`,
                 [item.quantity, item.product_id]
             );
         }
-        
-        await pool.query(
-            `INSERT INTO audit_log 
-             (user_id, audit_action, audit_table, table_id, new_data)
-             VALUES ($1, 'CREATE_ORDER', 'preorders', $2, $3)`,
-            [userId, orderId, JSON.stringify({ total, items_count: items.length })]
-        );
-        
-        this.sendOrderEmail(user.email, orderId, total, orderItems, user)
-            .catch(emailError => {
-                console.error('Ошибка отправки email:', emailError);
-            });
-        
-        res.status(201).json({
-            message: 'Заказ успешно оформлен! Чек отправлен на вашу почту.',
-            order: {
-                id: orderId,
-                total: orderResult.rows[0].total,
-                created_at: orderResult.rows[0].created_at,
-                items_count: items.length,
-                email_sent: true
-            }
-        });
-        
-    } catch (error) {
-        console.error('Ошибка создания заказа:', error);
-        res.status(500).json({ error: 'Ошибка создания заказа' });
     }
+
+    await db.query(
+        `INSERT INTO audit_log 
+         (user_id, audit_action, audit_table, table_id, old_data, new_data)
+         VALUES ($1, 'UPDATE_ORDER_STATUS', 'preorders', $2, $3, $4)`,
+        [
+            adminUserId,
+            orderId,
+            JSON.stringify({ status: oldStatusName }),
+            JSON.stringify({ status: resolvedNewName })
+        ]
+    );
+
+    return {
+        unchanged: false,
+        order: result.rows[0],
+        newStatusName: resolvedNewName
+    };
 }
+
+class OrderController {
+    async createOrder(req, res) {
+        const userId = req.user.userId;
+        const { items, phone } = req.body;
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: 'Корзина пуста' });
+        }
+
+        const client = await pool.connect();
+
+        try {
+            await client.query('BEGIN');
+
+            let total = 0;
+            const orderItems = [];
+
+            for (const item of items) {
+                const productResult = await client.query(
+                    `SELECT product_id, price, stock, product_name
+                     FROM products
+                     WHERE product_id = $1 AND is_active = true
+                     FOR UPDATE`,
+                    [item.productId]
+                );
+
+                if (productResult.rows.length === 0) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        error: `Товар с ID ${item.productId} не найден`
+                    });
+                }
+
+                const product = productResult.rows[0];
+
+                if (product.stock < item.quantity) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({
+                        error: `Недостаточно товара "${product.product_name}" на складе. Доступно: ${product.stock} шт.`
+                    });
+                }
+
+                let itemPrice = product.price;
+
+                const discountResult = await client.query(`
+                    SELECT discount_percent
+                    FROM discounts
+                    WHERE product_id = $1
+                    AND (end_date IS NULL OR end_date > NOW())
+                    ORDER BY created_at DESC
+                    LIMIT 1
+                `, [item.productId]);
+
+                if (discountResult.rows.length > 0) {
+                    const discountPercent = discountResult.rows[0].discount_percent;
+                    if (discountPercent > 0 && discountPercent <= 100) {
+                        itemPrice = product.price * (1 - discountPercent / 100);
+                        itemPrice = Math.round(itemPrice * 100) / 100;
+                    }
+                }
+
+                const itemTotal = itemPrice * item.quantity;
+                total += itemTotal;
+
+                orderItems.push({
+                    product_id: product.product_id,
+                    product_name: product.product_name,
+                    quantity: item.quantity,
+                    price: itemPrice,
+                    itemTotal: itemTotal
+                });
+            }
+
+            const userResult = await client.query(
+                'SELECT email, first_name, last_name FROM users WHERE user_id = $1',
+                [userId]
+            );
+
+            if (userResult.rows.length === 0) {
+                await client.query('ROLLBACK');
+                return res.status(404).json({ error: 'Пользователь не найден' });
+            }
+
+            const user = userResult.rows[0];
+
+            const orderResult = await client.query(
+                `INSERT INTO preorders
+                 (user_id, status_id, total, phone, created_at, updated_at)
+                 VALUES ($1, 1, $2, $3, NOW(), NOW())
+                 RETURNING pr_id as id, total, created_at`,
+                [userId, total, phone || req.user.phone]
+            );
+
+            const orderId = orderResult.rows[0].id;
+
+            for (const item of orderItems) {
+                await client.query(
+                    `INSERT INTO preorder_items
+                     (preorder_id, product_id, quantity, price)
+                     VALUES ($1, $2, $3, $4)`,
+                    [orderId, item.product_id, item.quantity, item.price]
+                );
+
+                const stockUpdate = await client.query(
+                    `UPDATE products
+                     SET stock = stock - $1
+                     WHERE product_id = $2 AND stock >= $1
+                     RETURNING product_id`,
+                    [item.quantity, item.product_id]
+                );
+
+                if (stockUpdate.rows.length === 0) {
+                    throw new Error(`Недостаточно товара "${item.product_name}" на складе`);
+                }
+            }
+
+            await client.query(
+                `INSERT INTO audit_log
+                 (user_id, audit_action, audit_table, table_id, new_data)
+                 VALUES ($1, 'CREATE_ORDER', 'preorders', $2, $3)`,
+                [userId, orderId, JSON.stringify({ total, items_count: items.length, stock_reserved: true })]
+            );
+
+            await client.query('DELETE FROM user_cart_items WHERE user_id = $1', [userId]).catch(() => {});
+            await client.query('COMMIT');
+
+            this.sendOrderEmail(user.email, orderId, total, orderItems, user)
+                .catch(emailError => {
+                    console.error('Ошибка отправки email:', emailError);
+                });
+
+            return res.status(201).json({
+                message: 'Заказ успешно оформлен! Чек отправлен на вашу почту.',
+                order: {
+                    id: orderId,
+                    total: orderResult.rows[0].total,
+                    created_at: orderResult.rows[0].created_at,
+                    items_count: items.length,
+                    email_sent: true
+                }
+            });
+
+        } catch (error) {
+            await client.query('ROLLBACK').catch(() => {});
+            console.error('Ошибка создания заказа:', error);
+            const msg = error && error.message ? error.message : '';
+            if (msg.includes('Недостаточно')) {
+                return res.status(400).json({ error: msg });
+            }
+            return res.status(500).json({ error: 'Ошибка создания заказа' });
+        } finally {
+            client.release();
+        }
+    }
 
     async sendOrderEmail(email, orderId, total, items, user) {
     const SMTP_USER = process.env.EMAIL_USER || process.env.SMTP_USER;
@@ -366,7 +498,11 @@ class OrderController {
 async getAllOrders(req, res) {
     try {
         const encryption = require('../utils/encryption');
-        
+        const archive = req.query.archive === 'true';
+        const archiveClause = archive
+            ? `AND pr.created_at < NOW() - INTERVAL '${MERCHANDISER_ARCHIVE_DAYS} days'`
+            : `AND pr.created_at >= NOW() - INTERVAL '${MERCHANDISER_ARCHIVE_DAYS} days'`;
+
         const result = await pool.query(`
             SELECT 
                 pr.pr_id as id,
@@ -387,6 +523,8 @@ async getAllOrders(req, res) {
             FROM preorders pr
             JOIN preorder_status ps ON pr.status_id = ps.ps_id
             JOIN users u ON pr.user_id = u.user_id
+            WHERE 1=1
+            ${archiveClause}
             ORDER BY pr.created_at DESC
         `);
         
@@ -427,252 +565,126 @@ async updateOrderStatus(req, res) {
     try {
         const { id } = req.params;
         const { status } = req.body;
-        
-        console.log('📢 Обновление статуса заказа:', { id, status });
-        
+
         if (!status) {
             return res.status(400).json({ error: 'Статус обязателен' });
         }
-        
-        const statusResult = await pool.query(
-            'SELECT ps_id FROM preorder_status WHERE ps_name = $1',
-            [status]
-        );
-        
-        if (statusResult.rows.length === 0) {
-            return res.status(400).json({ error: 'Неверный статус' });
+
+        const orderId = parseInt(id, 10);
+        if (Number.isNaN(orderId)) {
+            return res.status(400).json({ error: 'Некорректный ID заказа' });
         }
-        
-        const statusId = statusResult.rows[0].ps_id;
-        
-        const currentOrder = await pool.query(
-            'SELECT status_id, user_id FROM preorders WHERE pr_id = $1',
-            [id]
-        );
-        
-        if (currentOrder.rows.length === 0) {
-            return res.status(404).json({ error: 'Заказ не найден' });
-        }
-        
-        const oldStatusId = currentOrder.rows[0].status_id;
-        const userId = currentOrder.rows[0].user_id;
-        
-        if (oldStatusId === statusId) {
-            return res.json({ 
-                message: 'Статус уже установлен', 
-                status 
-            });
-        }
-        
-        const oldStatusResult = await pool.query(
-            'SELECT ps_name FROM preorder_status WHERE ps_id = $1',
-            [oldStatusId]
-        );
-        const oldStatusName = oldStatusResult.rows[0]?.ps_name || 'Неизвестно';
-        
-        const result = await pool.query(
-            `UPDATE preorders 
-             SET status_id = $1, updated_at = NOW()
-             WHERE pr_id = $2
-             RETURNING pr_id as id, total, updated_at`,
-            [statusId, id]
-        );
-        
-        const newStatusResult = await pool.query(
-            'SELECT ps_name FROM preorder_status WHERE ps_id = $1',
-            [statusId]
-        );
-        const newStatusName = newStatusResult.rows[0]?.ps_name || status;
-        
-        if (status === 'Подтвержден') {
-            try {
-                const items = await pool.query(
-                    `SELECT pi.product_id, pi.quantity, p.product_name, p.stock
-                     FROM preorder_items pi
-                     JOIN products p ON pi.product_id = p.product_id
-                     WHERE pi.preorder_id = $1`,
-                    [id]
-                );
-                
-                console.log('📦 Товары для резервирования:', items.rows);
-                
-                const insufficientItems = [];
-                for (const item of items.rows) {
-                    if (item.stock < item.quantity) {
-                        insufficientItems.push({
-                            product_id: item.product_id,
-                            product_name: item.product_name,
-                            required: item.quantity,
-                            available: item.stock
-                        });
-                    }
-                }
-                
-                if (insufficientItems.length > 0) {
-                    console.error('❌ Недостаточно товаров:', insufficientItems);
-                    await pool.query(
-                        `UPDATE preorders 
-                         SET status_id = $1, updated_at = NOW()
-                         WHERE pr_id = $2`,
-                        [oldStatusId, id]
-                    );
-                    return res.status(400).json({ 
-                        error: `Недостаточно товаров на складе: ${insufficientItems.map(i => i.product_name).join(', ')}` 
-                    });
-                }
-                
-                for (const item of items.rows) {
-                    const updateResult = await pool.query(
-                        `UPDATE products 
-                         SET stock = stock - $1
-                         WHERE product_id = $2 AND stock >= $1
-                         RETURNING product_id, product_name, stock`,
-                        [item.quantity, item.product_id]
-                    );
-                    
-                    if (updateResult.rows.length === 0) {
-                        await pool.query(
-                            `UPDATE preorders 
-                             SET status_id = $1, updated_at = NOW()
-                             WHERE pr_id = $2`,
-                            [oldStatusId, id]
-                        );
-                        throw new Error(`Не удалось зарезервировать товар ${item.product_name}`);
-                    }
-                    
-                    console.log(`✅ Товар зарезервирован: ${item.product_name} -${item.quantity} шт.`);
-                }
-                
-                console.log('✅ Все товары успешно зарезервированы');
-                
-            } catch (reserveError) {
-                console.error('❌ Ошибка резервирования товаров:', reserveError);
-                await pool.query(
-                    `UPDATE preorders 
-                     SET status_id = $1, updated_at = NOW()
-                     WHERE pr_id = $2`,
-                    [oldStatusId, id]
-                );
-                return res.status(500).json({ 
-                    error: 'Ошибка резервирования товаров',
-                    details: reserveError.message 
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const result = await executeOrderStatusUpdate(client, orderId, status, req.user.userId);
+            await client.query('COMMIT');
+
+            if (result.unchanged) {
+                return res.json({
+                    message: 'Статус уже установлен',
+                    status: result.newStatusName
                 });
             }
-        }
-        
-        if (oldStatusName === 'Подтвержден' && status !== 'Подтвержден') {
-            try {
-                const items = await pool.query(
-                    `SELECT pi.product_id, pi.quantity, p.product_name
-                     FROM preorder_items pi
-                     JOIN products p ON pi.product_id = p.product_id
-                     WHERE pi.preorder_id = $1`,
-                    [id]
-                );
-                
-                for (const item of items.rows) {
-                    await pool.query(
-                        `UPDATE products 
-                         SET stock = stock + $1
-                         WHERE product_id = $2`,
-                        [item.quantity, item.product_id]
-                    );
-                    console.log(`↩️ Товар возвращен на склад: ${item.product_name} +${item.quantity} шт.`);
-                }
-            } catch (returnError) {
-                console.error('❌ Ошибка возврата товаров:', returnError);
+
+            return res.json({
+                message: 'Статус заказа успешно обновлен',
+                order: result.order,
+                status: result.newStatusName
+            });
+        } catch (e) {
+            await client.query('ROLLBACK');
+            const msg = e.message || '';
+            if (msg.includes('невозможен')) {
+                return res.status(403).json({ error: msg });
             }
+            if (
+                msg.includes('Недостаточно') ||
+                msg.includes('Неверный статус') ||
+                msg.includes('не найден') ||
+                msg.includes('Некорректный')
+            ) {
+                return res.status(400).json({ error: msg });
+            }
+            console.error('❌ Ошибка обновления статуса заказа:', e);
+            return res.status(500).json({
+                error: 'Ошибка обновления статуса заказа',
+                details: msg
+            });
+        } finally {
+            client.release();
         }
-        
-        await pool.query(
-            `INSERT INTO audit_log 
-             (user_id, audit_action, audit_table, table_id, old_data, new_data)
-             VALUES ($1, 'UPDATE_ORDER_STATUS', 'preorders', $2, $3, $4)`,
-            [req.user.userId, id, 
-             JSON.stringify({ status: oldStatusName }),
-             JSON.stringify({ status: newStatusName })]
-        );
-        
-        res.json({
-            message: 'Статус заказа успешно обновлен',
-            order: result.rows[0],
-            status: newStatusName
-        });
-        
     } catch (error) {
         console.error('❌ Ошибка обновления статуса заказа:', error);
-        res.status(500).json({ 
+        return res.status(500).json({
             error: 'Ошибка обновления статуса заказа',
-            details: error.message 
+            details: error.message
         });
     }
 }
 
-    async reserveProductsForOrder(orderId) {
+async batchUpdateOrderStatus(req, res) {
     try {
-        console.log('🛒 Резервирование товаров для заказа', orderId);
-        
-        const items = await pool.query(
-            `SELECT pi.product_id, pi.quantity, p.product_name, p.stock
-             FROM preorder_items pi
-             JOIN products p ON pi.product_id = p.product_id
-             WHERE pi.preorder_id = $1`,
-            [orderId]
-        );
-        
-        console.log('📦 Товары для резервирования:', items.rows);
-        
-        const insufficientItems = [];
-        for (const item of items.rows) {
-            if (item.stock < item.quantity) {
-                insufficientItems.push({
-                    product_id: item.product_id,
-                    product_name: item.product_name,
-                    required: item.quantity,
-                    available: item.stock
-                });
+        const { order_ids, status } = req.body;
+
+        if (!Array.isArray(order_ids) || order_ids.length === 0) {
+            return res.status(400).json({ error: 'Укажите непустой массив order_ids' });
+        }
+        if (!status) {
+            return res.status(400).json({ error: 'Статус обязателен' });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+
+            let updated = 0;
+            let skipped = 0;
+
+            for (const rawId of order_ids) {
+                const orderId = parseInt(rawId, 10);
+                if (Number.isNaN(orderId)) {
+                    throw new Error(`Некорректный ID заказа: ${rawId}`);
+                }
+
+                const result = await executeOrderStatusUpdate(
+                    client,
+                    orderId,
+                    status,
+                    req.user.userId
+                );
+
+                if (result.unchanged) {
+                    skipped += 1;
+                } else {
+                    updated += 1;
+                }
             }
-        }
-        
-        if (insufficientItems.length > 0) {
-            console.error('❌ Недостаточно товаров:', insufficientItems);
-            throw new Error(`Недостаточно товаров на складе: ${JSON.stringify(insufficientItems)}`);
-        }
-        
-        for (const item of items.rows) {
-            const updateResult = await pool.query(
-                `UPDATE products 
-                 SET stock = stock - $1
-                 WHERE product_id = $2 AND stock >= $1
-                 RETURNING product_id, product_name, stock`,
-                [item.quantity, item.product_id]
-            );
-            
-            if (updateResult.rows.length === 0) {
-                throw new Error(`Не удалось зарезервировать товар ${item.product_name}`);
+
+            await client.query('COMMIT');
+
+            return res.json({
+                message:
+                    updated > 0
+                        ? `Обновлено заказов: ${updated}${skipped ? `, без изменений: ${skipped}` : ''}`
+                        : `Все выбранные заказы уже в статусе «${status}»`,
+                updated,
+                skipped
+            });
+        } catch (e) {
+            await client.query('ROLLBACK');
+            const msg = e.message || '';
+            if (msg.includes('невозможен')) {
+                return res.status(403).json({ error: msg });
             }
-            
-            console.log(`✅ Товар зарезервирован: ${item.product_name} -${item.quantity} шт.`);
+            return res.status(400).json({ error: msg || 'Ошибка массового обновления' });
+        } finally {
+            client.release();
         }
-        
-        await pool.query(
-            `INSERT INTO audit_log 
-             (audit_action, audit_table, table_id, new_data)
-             VALUES ('RESERVE_PRODUCTS', 'preorders', $1, $2)`,
-            [orderId, JSON.stringify({ 
-                items_count: items.rows.length,
-                items: items.rows.map(i => ({ 
-                    product_id: i.product_id, 
-                    quantity: i.quantity 
-                }))
-            })]
-        );
-        
-        console.log('✅ Все товары успешно зарезервированы');
-        
     } catch (error) {
-        console.error('❌ Ошибка резервирования товаров:', error);
-        throw error;
+        console.error('❌ batchUpdateOrderStatus:', error);
+        return res.status(500).json({ error: 'Ошибка массового обновления статусов' });
     }
 }
 
@@ -740,6 +752,17 @@ async getOrderDetailsForMerchandiser(req, res) {
     }
 }
 
+async getOrderStatuses(req, res) {
+    try {
+        const result = await pool.query(
+            'SELECT ps_id as id, ps_name as name FROM preorder_status ORDER BY ps_id'
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error('Ошибка получения статусов:', error);
+        res.status(500).json({ error: 'Ошибка получения статусов' });
+    }
+}
 
 }
 

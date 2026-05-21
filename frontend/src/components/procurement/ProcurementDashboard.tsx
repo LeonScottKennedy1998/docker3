@@ -3,11 +3,7 @@ import './ProcurementDashboard.css';
 import SupplierManagement from './SupplierManagement';
 import OrderManagement from './OrderManagement';
 import StockAnalysis from './StockAnalysis';
-
-
-interface ProcurementDashboardProps {
-    defaultTab?: 'suppliers' | 'orders' | 'stock';
-}
+import type { ProcurementDashboardProps } from '../../types/props';
 
 const ProcurementDashboard: React.FC<ProcurementDashboardProps> = ({ defaultTab = 'orders' }) => {
     const [activeTab, setActiveTab] = useState<'suppliers' | 'orders' | 'stock'>(defaultTab); 

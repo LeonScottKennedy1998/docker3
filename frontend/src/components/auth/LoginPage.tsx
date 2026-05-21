@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_URLS, getAuthHeaders } from '../../config/api';
+import type { LoginPageProps } from '../../types/props';
 import './Auth.css';
-
-interface LoginPageProps {
-    onLogin: (userData: any) => void;
-}
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const navigate = useNavigate();
@@ -114,12 +111,19 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         }
     };
 
-    const completeLogin = (data: any) => {
+    const completeLogin = async (data: any) => {
+        const userPayload = {
+            ...data.user,
+            theme: data.user.theme === 'dark' ? 'dark' : 'light',
+            catalog_page_size: [10, 15, 20].includes(Number(data.user.catalog_page_size))
+                ? Number(data.user.catalog_page_size)
+                : 15
+        };
         localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
-        
-        onLogin(data.user);
-        alert(`Вход выполнен! Добро пожаловать, ${data.user.first_name}!`);
+        localStorage.setItem('user', JSON.stringify(userPayload));
+
+        await onLogin(userPayload);
+        alert(`Вход выполнен! Добро пожаловать, ${userPayload.first_name}!`);
         navigate('/');
     };
 
@@ -157,7 +161,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         setTwoFactorData({ code: '', email: '', userId: null });
     };
 
-    // Email администратора для отображения
     const adminEmail = 'admin@mpt.ru';
 
     const toggleShowPassword = () => {
@@ -227,7 +230,6 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                                 </button>
                             </form>
                             
-                            {/* Блок с контактами администратора */}
                             <div className="admin-contact">
                                 <div className="admin-contact-header">
                                     <span className="admin-icon">👨‍💼</span>

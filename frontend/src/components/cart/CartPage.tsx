@@ -1,24 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import './CartPage.css';
-import {  API_URLS, getAuthHeaders } from '../../config/api';
-
-interface CartItem {
-    productId: number;
-    name: string;
-    price: number;
-    quantity: number;
-}
-
-interface CartPageProps {
-    cart: CartItem[];
-    updateCart: (cart: CartItem[]) => void;
-    clearCart: () => void;
-    removeFromCart: (productId: number) => void;
-    updateQuantity: (productId: number, quantity: number) => void;
-    user: any;
-}
-
+import { API_URLS, getAuthHeaders } from '../../config/api';
+import type { CartPageProps } from '../../types/props';
+import type { CartItem } from '../../types/product';
+import {
+    PHONE_COUNTRY_CODES,
+    buildInternationalPhone,
+    digitsOnly,
+    getMaxLocalPhoneLength,
+    isValidInternationalPhone,
+    normalizePhoneParts,
+} from '../../utils/phone';
 
 const CartPage: React.FC<CartPageProps> = ({ 
     cart, 
@@ -27,11 +20,14 @@ const CartPage: React.FC<CartPageProps> = ({
     updateQuantity,
     user 
 }) => {
-    const [phone, setPhone] = useState(user?.phone || '');
+    const initialPhone = normalizePhoneParts(user?.phone || '');
+    const [phoneCountryCode, setPhoneCountryCode] = useState(initialPhone.countryCode);
+    const [phoneLocalNumber, setPhoneLocalNumber] = useState(initialPhone.localNumber);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [productsData, setProductsData] = useState<Map<number, any>>(new Map());
     const navigate = useNavigate();
     const token = localStorage.getItem('token');
+    const normalizedPhone = buildInternationalPhone(phoneCountryCode, phoneLocalNumber);
 
     useEffect(() => {
         if (cart.length > 0) {
@@ -41,7 +37,9 @@ const CartPage: React.FC<CartPageProps> = ({
 
     useEffect(() => {
         if (user?.phone) {
-            setPhone(user.phone);
+            const parts = normalizePhoneParts(user.phone);
+            setPhoneCountryCode(parts.countryCode);
+            setPhoneLocalNumber(parts.localNumber);
         }
     }, [user]);
 
@@ -69,10 +67,43 @@ const CartPage: React.FC<CartPageProps> = ({
     };
 
     const getProductData = (productId: number) => {
+        const cartItem = cart.find(item => item.productId === productId);
         return productsData.get(productId) || { 
-            price: cart.find(item => item.productId === productId)?.price || 0,
-            has_discount: false 
+            price: cartItem?.price || 0,
+            stock: cartItem?.stock,
+            has_discount: false
         };
+    };
+
+    const getAvailableStock = (item: CartItem) => {
+        const stock = getProductData(item.productId).stock ?? item.stock;
+        return typeof stock === 'number' ? stock : undefined;
+    };
+
+    const handlePhoneCountryCodeChange = (value: string) => {
+        const countryCode = value.startsWith('+') ? value : `+${digitsOnly(value)}`;
+        setPhoneCountryCode(countryCode);
+        setPhoneLocalNumber((current) => digitsOnly(current).slice(0, getMaxLocalPhoneLength(countryCode)));
+    };
+
+    const handlePhoneLocalChange = (value: string) => {
+        setPhoneLocalNumber(digitsOnly(value).slice(0, getMaxLocalPhoneLength(phoneCountryCode)));
+    };
+
+    const handleQuantityChange = (item: CartItem, quantity: number) => {
+        if (quantity < 1) {
+            updateQuantity(item.productId, quantity);
+            return;
+        }
+
+        const stock = getAvailableStock(item);
+        if (stock !== undefined && quantity > stock) {
+            alert(`На складе доступно только ${stock} шт.`);
+            updateQuantity(item.productId, stock);
+            return;
+        }
+
+        updateQuantity(item.productId, quantity);
     };
 
     const calculateItemPrice = (item: CartItem) => {
@@ -106,8 +137,25 @@ const CartPage: React.FC<CartPageProps> = ({
             return;
         }
 
-        if (!phone.trim()) {
+        if (!phoneLocalNumber.trim()) {
             alert('Введите телефон для связи');
+            return;
+        }
+
+        if (!isValidInternationalPhone(phoneCountryCode, phoneLocalNumber)) {
+            alert('Введите корректный номер телефона');
+            return;
+        }
+
+        const unavailableItem = cart.find((item) => {
+            const stock = getAvailableStock(item);
+            return stock !== undefined && item.quantity > stock;
+        });
+
+        if (unavailableItem) {
+            const stock = getAvailableStock(unavailableItem) || 0;
+            alert(`Количество "${unavailableItem.name}" превышает остаток на складе (${stock} шт.).`);
+            updateQuantity(unavailableItem.productId, stock);
             return;
         }
 
@@ -119,7 +167,7 @@ const CartPage: React.FC<CartPageProps> = ({
                     productId: item.productId,
                     quantity: item.quantity
                 })),
-                phone: phone.trim()
+                phone: normalizedPhone
             };
 
             const response = await fetch(API_URLS.ORDERS.CREATE, {
@@ -188,6 +236,8 @@ const CartPage: React.FC<CartPageProps> = ({
                                 const productData = getProductData(item.productId);
                                 const itemPrice = calculateItemPrice(item);
                                 const itemTotal = calculateItemTotal(item);
+                                const availableStock = getAvailableStock(item);
+                                const isMaxQuantity = availableStock !== undefined && item.quantity >= availableStock;
                                 
                                 return (
                                     <tr key={item.productId}>
@@ -218,19 +268,26 @@ const CartPage: React.FC<CartPageProps> = ({
                                         <td>
                                             <div className="quantity-control">
                                                 <button 
-                                                    onClick={() => updateQuantity(item.productId, item.quantity - 1)}
+                                                    onClick={() => handleQuantityChange(item, item.quantity - 1)}
                                                     className="quantity-btn"
                                                 >
                                                     -
                                                 </button>
                                                 <span>{item.quantity}</span>
                                                 <button 
-                                                    onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                                                    onClick={() => handleQuantityChange(item, item.quantity + 1)}
                                                     className="quantity-btn"
+                                                    disabled={isMaxQuantity}
+                                                    title={isMaxQuantity ? `На складе ${availableStock} шт.` : undefined}
                                                 >
                                                     +
                                                 </button>
                                             </div>
+                                            {availableStock !== undefined && (
+                                                <span className="stock-limit-note">
+                                                    Доступно: {availableStock} шт.
+                                                </span>
+                                            )}
                                         </td>
                                         <td>{itemTotal.toLocaleString()} ₽</td>
                                         <td>
@@ -287,14 +344,34 @@ const CartPage: React.FC<CartPageProps> = ({
                     
                     <div className="form-group">
                         <label>Телефон для связи *</label>
-                        <input
-                            type="tel"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value)}
-                            placeholder="+7 (999) 123-45-67"
-                            required
-                        />
-                        {user?.phone && user.phone === phone && (
+                        <div className="phone-input-row">
+                            <input
+                                className="country-code-input"
+                                type="tel"
+                                inputMode="numeric"
+                                list="cart-phone-country-codes"
+                                value={phoneCountryCode}
+                                onChange={(e) => handlePhoneCountryCodeChange(e.target.value)}
+                                aria-label="Код страны"
+                                maxLength={4}
+                            />
+                            <datalist id="cart-phone-country-codes">
+                                {PHONE_COUNTRY_CODES.map((code) => (
+                                    <option key={code} value={code} />
+                                ))}
+                            </datalist>
+                            <input
+                                type="tel"
+                                inputMode="numeric"
+                                value={phoneLocalNumber}
+                                onChange={(e) => handlePhoneLocalChange(e.target.value)}
+                                placeholder="9991234567"
+                                maxLength={getMaxLocalPhoneLength(phoneCountryCode)}
+                                required
+                            />
+                        </div>
+                        <span className="phone-preview">Будет сохранено как {normalizedPhone || `${phoneCountryCode}...`}</span>
+                        {user?.phone && normalizedPhone === buildInternationalPhone(normalizePhoneParts(user.phone).countryCode, normalizePhoneParts(user.phone).localNumber) && (
                             <span className="phone-info">
                                 (телефон из вашего профиля)
                             </span>
@@ -304,7 +381,7 @@ const CartPage: React.FC<CartPageProps> = ({
                     <button 
                         onClick={handleSubmitOrder}
                         className="cta-button"
-                        disabled={isSubmitting || !phone.trim()}
+                        disabled={isSubmitting || !phoneLocalNumber.trim()}
                     >
                         {isSubmitting ? 'Оформление...' : 'Оформить заказ'}
                     </button>

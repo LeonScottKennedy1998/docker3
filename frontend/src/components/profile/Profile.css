@@ -84,13 +84,13 @@
 .password-info h3 {
     margin-top: 0;
     margin-bottom: 1rem;
-    color: #2c3e50;
+    color: var(--app-heading, #2c3e50);
 }
 
 .user-info-summary p,
 .password-info p {
     margin: 0.5rem 0;
-    color: #555;
+    color: var(--app-text, #555);
     line-height: 1.5;
 }
 
@@ -1081,4 +1081,58 @@
     .two-factor-actions button:active {
         transform: scale(0.98);
     }
+}
+
+.profile-content,
+.security-form {
+    background: var(--card-bg, #fff);
+    color: var(--app-text, inherit);
+    box-shadow: 0 3px 10px var(--shadow, rgba(0, 0, 0, 0.1));
+}
+
+.profile-header h1 {
+    color: var(--app-heading, #2c3e50);
+}
+
+.appearance-note {
+    font-size: 0.9rem;
+    color: var(--page-muted, #7f8c8d);
+    margin: 0 0 1rem 0;
+    line-height: 1.45;
+}
+
+.profile-form .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.profile-form .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    color: var(--app-heading, #2c3e50);
+}
+
+.profile-form .form-group input,
+.profile-form .form-group select {
+    width: 100%;
+    max-width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border: 1px solid var(--card-border, #e0e0e0);
+    border-radius: 8px;
+    background: var(--input-bg, #fff);
+    color: var(--app-text, #333);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.profile-form .form-group select {
+    cursor: pointer;
+}
+
+.profile-form .form-group input:focus,
+.profile-form .form-group select:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
 }

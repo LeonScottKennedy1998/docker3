@@ -47,7 +47,7 @@
     line-height: 1.2;
 }
 
-.order-id {
+.order-success-page .order-id {
     font-size: 1.3rem;
     color: #3498db;
     margin-bottom: 2.5rem;
@@ -60,7 +60,7 @@
     border: 2px solid #e3f2fd;
 }
 
-.order-id strong {
+.order-success-page .order-id strong {
     color: #2980b9;
     font-size: 1.4rem;
 }
@@ -269,12 +269,12 @@
         font-size: 2rem;
     }
     
-    .order-id {
+    .order-success-page .order-id {
         font-size: 1.1rem;
         padding: 0.8rem 1.5rem;
     }
     
-    .order-id strong {
+    .order-success-page .order-id strong {
         font-size: 1.2rem;
     }
     
@@ -321,13 +321,13 @@
         margin-bottom: 0.75rem;
     }
     
-    .order-id {
+    .order-success-page .order-id {
         font-size: 1rem;
         padding: 0.7rem 1.2rem;
         margin-bottom: 2rem;
     }
     
-    .order-id strong {
+    .order-success-page .order-id strong {
         font-size: 1.1rem;
     }
     
@@ -384,7 +384,7 @@
         font-size: 1.5rem;
     }
     
-    .order-id {
+    .order-success-page .order-id {
         font-size: 0.95rem;
         padding: 0.6rem 1rem;
     }

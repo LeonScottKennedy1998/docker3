@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { API_URLS, getAuthHeaders } from '../../config/api';
 import './Auth.css';
+import {
+    PHONE_COUNTRY_CODES,
+    buildInternationalPhone,
+    digitsOnly,
+    getMaxLocalPhoneLength,
+    isValidInternationalPhone,
+} from '../../utils/phone';
 
 const RegisterPage: React.FC = () => {
     const navigate = useNavigate();
@@ -12,8 +19,9 @@ const RegisterPage: React.FC = () => {
         first_name: '',
         last_name: '',
         patronymic: '',
-        phone: ''
     });
+    const [phoneCountryCode, setPhoneCountryCode] = useState('+7');
+    const [phoneLocalNumber, setPhoneLocalNumber] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
@@ -25,6 +33,16 @@ const RegisterPage: React.FC = () => {
             ...formData,
             [e.target.name]: e.target.value
         });
+    };
+
+    const handlePhoneCountryCodeChange = (value: string) => {
+        const countryCode = value.startsWith('+') ? value : `+${digitsOnly(value)}`;
+        setPhoneCountryCode(countryCode);
+        setPhoneLocalNumber((current) => digitsOnly(current).slice(0, getMaxLocalPhoneLength(countryCode)));
+    };
+
+    const handlePhoneLocalChange = (value: string) => {
+        setPhoneLocalNumber(digitsOnly(value).slice(0, getMaxLocalPhoneLength(phoneCountryCode)));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -46,8 +64,7 @@ const RegisterPage: React.FC = () => {
             return;
         }
         
-        const phoneRegex = /^[+]?[0-9\s\-\(\)]{10,15}$/;
-        if (!phoneRegex.test(formData.phone)) {
+        if (!isValidInternationalPhone(phoneCountryCode, phoneLocalNumber)) {
             setError('Неверный формат телефона');
             return;
         }
@@ -64,7 +81,7 @@ const RegisterPage: React.FC = () => {
                     first_name: formData.first_name,
                     last_name: formData.last_name,
                     patronymic: formData.patronymic || undefined,
-                    phone: formData.phone
+                    phone: buildInternationalPhone(phoneCountryCode, phoneLocalNumber)
                 })
             });
             
@@ -84,7 +101,6 @@ const RegisterPage: React.FC = () => {
         }
     };
 
-    // Email администратора для отображения
     const adminEmail = 'admin@mpt.ru';
 
     const toggleShowPassword = () => {
@@ -204,15 +220,36 @@ const RegisterPage: React.FC = () => {
                         
                         <div className="form-group">
                             <label>Телефон *</label>
-                            <input
-                                type="tel"
-                                name="phone"
-                                value={formData.phone}
-                                onChange={handleChange}
-                                placeholder="+7 (999) 123-45-67"
-                                required
-                            />
-                            <small>Пример: +7 (999) 123-45-67</small>
+                            <div className="phone-input-row">
+                                <input
+                                    className="country-code-input"
+                                    type="tel"
+                                    inputMode="numeric"
+                                    list="register-phone-country-codes"
+                                    value={phoneCountryCode}
+                                    onChange={(e) => handlePhoneCountryCodeChange(e.target.value)}
+                                    aria-label="Код страны"
+                                    maxLength={4}
+                                />
+                                <datalist id="register-phone-country-codes">
+                                    {PHONE_COUNTRY_CODES.map((code) => (
+                                        <option key={code} value={code} />
+                                    ))}
+                                </datalist>
+                                <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    value={phoneLocalNumber}
+                                    onChange={(e) => handlePhoneLocalChange(e.target.value)}
+                                    placeholder="9991234567"
+                                    maxLength={getMaxLocalPhoneLength(phoneCountryCode)}
+                                    required
+                                />
+                            </div>
+                            <small>
+                                Введите только цифры. Номер будет сохранён как{' '}
+                                {buildInternationalPhone(phoneCountryCode, phoneLocalNumber) || `${phoneCountryCode}...`}
+                            </small>
                         </div>
                         
                         <div className="privacy-agreement">
@@ -246,7 +283,6 @@ const RegisterPage: React.FC = () => {
                             </ul>
                         </div>
                         
-                        {/* Блок с контактами администратора */}
                         <div className="admin-contact register-contact">
                             <div className="admin-contact-header">
                                 <span className="admin-icon">👨‍💼</span>

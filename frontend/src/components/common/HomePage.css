@@ -11,6 +11,75 @@
     max-width: 100%;
 }
 
+.mobile-app-promo {
+    margin: 1.75rem auto 0;
+    max-width: 900px;
+    padding: 0 0.5rem;
+}
+
+.mobile-app-promo__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    background: white;
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-app-promo__text {
+    flex: 1 1 220px;
+    min-width: 0;
+}
+
+.mobile-app-promo__title {
+    margin: 0 0 0.5rem;
+    font-size: 1.15rem;
+    color: #2c3e50;
+}
+
+.mobile-app-promo__desc {
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: #7f8c8d;
+}
+
+.mobile-app-promo__btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0.75rem 1.75rem;
+    background: #2ecc71;
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: 6px;
+    transition: background 0.3s, transform 0.2s;
+}
+
+.mobile-app-promo__btn:hover {
+    background: #27ae60;
+    transform: translateY(-1px);
+}
+
+html[data-theme='dark'] .mobile-app-promo__inner {
+    background: var(--card-bg, #1e2937);
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme='dark'] .mobile-app-promo__title {
+    color: var(--text-primary, #e8eaed);
+}
+
+html[data-theme='dark'] .mobile-app-promo__desc {
+    color: var(--text-muted, #9aa5b1);
+}
+
 .user-welcome {
     margin-top: 2rem;
 }

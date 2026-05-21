@@ -81,7 +81,7 @@ class WishlistNotificationService {
             `;
 
             const mailOptions = {
-                from: `"Магазин МПТ" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+                from: `${process.env.EMAIL_FROM || process.env.EMAIL_USER}`,
                 to: userEmail,
                 subject: `🎉 Товар "${product.product_name}" снова в наличии!`,
                 html: htmlContent,
@@ -167,7 +167,7 @@ class WishlistNotificationService {
             `;
 
             const mailOptions = {
-                from: `"Магазин МПТ" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+                from: `${process.env.EMAIL_FROM || process.env.EMAIL_USER}`,
                 to: userEmail,
                 subject: `🔥 Скидка ${discountPercent}% на "${product.product_name}"!`,
                 html: htmlContent,
@@ -209,8 +209,13 @@ class WishlistNotificationService {
         try {
             await pool.query(
                 `INSERT INTO wishlist_notifications 
-                 (user_id, product_id, notification_type, old_value, new_value, sent_at)
-                 VALUES ($1, $2, $3, $4, $5, NOW())`,
+                 (user_id, product_id, notification_type, old_value, new_value, sent_at, sent_date)
+                 VALUES ($1, $2, $3, $4, $5, NOW(), CURRENT_DATE)
+                 ON CONFLICT (user_id, product_id, notification_type, sent_date)
+                 DO UPDATE SET
+                   sent_at = EXCLUDED.sent_at,
+                   new_value = EXCLUDED.new_value,
+                   old_value = EXCLUDED.old_value`,
                 [userId, productId, notificationType, oldValue, newValue]
             );
         } catch (error) {
@@ -225,4 +230,6 @@ class WishlistNotificationService {
     }
 }
 
-module.exports = WishlistNotificationService;
+const wishlistNotificationService = new WishlistNotificationService();
+module.exports = wishlistNotificationService;
+module.exports.WishlistNotificationService = WishlistNotificationService;

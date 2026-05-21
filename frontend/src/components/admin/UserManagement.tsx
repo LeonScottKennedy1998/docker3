@@ -1,26 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './Admin.css';
+import '../auth/Auth.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface User {
-    id: number;
-    email: string;
-    first_name: string;
-    last_name: string;
-    patronymic?: string;
-    phone: string;
-    role: string;
-    is_active: boolean;
-    created_at: string;
-}
+import type { AdminListUser, RoleRow } from '../../types/admin';
 
 const UserManagement = () => {
-    const [users, setUsers] = useState<User[]>([]);
+    const [users, setUsers] = useState<AdminListUser[]>([]);
+    const [roleList, setRoleList] = useState<RoleRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showAddForm, setShowAddForm] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    const [editingUser, setEditingUser] = useState<AdminListUser | null>(null);
+    const [selectedUser, setSelectedUser] = useState<AdminListUser | null>(null);
     
     const [formData, setFormData] = useState({
         email: '',
@@ -38,7 +29,34 @@ const UserManagement = () => {
         confirmPassword: ''
     });
 
-    const roles = ['Администратор', 'Товаровед', 'Аналитик', 'Клиент'];
+    const [showCreatePassword, setShowCreatePassword] = useState(false);
+    const [showResetNew, setShowResetNew] = useState(false);
+    const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+    const defaultRoleName = useMemo(() => {
+        const names = roleList.map(r => r.name);
+        if (names.includes('Клиент')) return 'Клиент';
+        return names[0] || 'Клиент';
+    }, [roleList]);
+
+    const fetchRoles = async () => {
+        try {
+            const response = await fetch(API_URLS.USERS.ROLES, {
+                headers: getAuthHeaders()
+            });
+            if (!response.ok) throw new Error('Ошибка загрузки ролей');
+            const data: RoleRow[] = await response.json();
+            setRoleList(data);
+        } catch {
+            setRoleList([
+                { id: 1, name: 'Администратор' },
+                { id: 2, name: 'Товаровед' },
+                { id: 3, name: 'Аналитик' },
+                { id: 4, name: 'Клиент' },
+                { id: 5, name: 'Менеджер по закупкам' }
+            ]);
+        }
+    };
 
     const fetchUsers = async () => {
         
@@ -60,6 +78,7 @@ const UserManagement = () => {
     };
 
     useEffect(() => {
+        fetchRoles();
         fetchUsers();
     }, []);
 
@@ -100,7 +119,7 @@ const UserManagement = () => {
                 last_name: '',
                 patronymic: '',
                 phone: '',
-                role: 'Клиент',
+                role: defaultRoleName,
                 is_active: true
             });
             fetchUsers();
@@ -120,10 +139,6 @@ const UserManagement = () => {
                 method: 'PUT',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({
-                    first_name: formData.first_name,
-                    last_name: formData.last_name,
-                    patronymic: formData.patronymic,
-                    phone: formData.phone,
                     role: formData.role,
                     is_active: formData.is_active
                 })
@@ -142,7 +157,7 @@ const UserManagement = () => {
                 last_name: '',
                 patronymic: '',
                 phone: '',
-                role: 'Клиент',
+                role: defaultRoleName,
                 is_active: true
             });
             fetchUsers();
@@ -216,7 +231,7 @@ const UserManagement = () => {
         }
     };
 
-    const startEditUser = (user: User) => {
+    const startEditUser = (user: AdminListUser) => {
         setEditingUser(user);
         setFormData({
             email: user.email,
@@ -248,9 +263,30 @@ const UserManagement = () => {
             {(showAddForm || editingUser) && (
                 <div className="modal-overlay">
                     <div className="modal">
-                        <h2>{editingUser ? 'Редактирование пользователя' : 'Добавление пользователя'}</h2>
-                        
+                        <h2>{editingUser ? 'Роль и доступ пользователя' : 'Добавление пользователя'}</h2>
+
+                        {editingUser && (
+                            <div className="admin-user-readonly">
+                                <p>
+                                    <strong>ФИО:</strong> {editingUser.last_name} {editingUser.first_name}{' '}
+                                    {editingUser.patronymic || ''}
+                                </p>
+                                <p>
+                                    <strong>Email:</strong> {editingUser.email}
+                                </p>
+                                <p>
+                                    <strong>Телефон:</strong> {editingUser.phone}
+                                </p>
+                                <p className="hint-text">
+                                    Персональные данные пользователь изменяет сам в профиле. Здесь доступны
+                                    только роль и блокировка аккаунта.
+                                </p>
+                            </div>
+                        )}
+
                         <form onSubmit={editingUser ? handleUpdateUser : handleAddUser}>
+                            {!editingUser && (
+                                <>
                             <div className="form-row">
                                 <div className="form-group">
                                     <label>Имя *</label>
@@ -297,23 +333,30 @@ const UserManagement = () => {
                                     onChange={handleFormChange}
                                     placeholder="user@mpt.ru"
                                     required
-                                    disabled={!!editingUser}
                                 />
                             </div>
                             
-                            {!editingUser && (
-                                <div className="form-group">
+                                <div className="form-group password-group">
                                     <label>Пароль *</label>
-                                    <input
-                                        type="password"
-                                        name="password"
-                                        value={formData.password}
-                                        onChange={handleFormChange}
-                                        placeholder="••••••••"
-                                        required
-                                    />
+                                    <div className="password-input-wrapper">
+                                        <input
+                                            type={showCreatePassword ? 'text' : 'password'}
+                                            name="password"
+                                            value={formData.password}
+                                            onChange={handleFormChange}
+                                            placeholder="••••••••"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle"
+                                            onClick={() => setShowCreatePassword((v) => !v)}
+                                            aria-label={showCreatePassword ? 'Скрыть пароль' : 'Показать пароль'}
+                                        >
+                                            {showCreatePassword ? '👁️' : '👁️‍🗨️'}
+                                        </button>
+                                    </div>
                                 </div>
-                            )}
                             
                             <div className="form-row">
                                 <div className="form-group">
@@ -336,27 +379,47 @@ const UserManagement = () => {
                                         onChange={handleFormChange}
                                         required
                                     >
-                                        {roles.map(role => (
-                                            <option key={role} value={role}>
-                                                {role}
+                                        {roleList.map(r => (
+                                            <option key={r.id} value={r.name}>
+                                                {r.name}
                                             </option>
                                         ))}
                                     </select>
                                 </div>
                             </div>
+                                </>
+                            )}
+
+                            {editingUser && (
+                                <div className="form-group">
+                                    <label>Роль *</label>
+                                    <select
+                                        name="role"
+                                        value={formData.role}
+                                        onChange={handleFormChange}
+                                        required
+                                    >
+                                        {roleList.map(r => (
+                                            <option key={r.id} value={r.name}>
+                                                {r.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             
-                            <div className="checkbox-group">
-    <input
-        type="checkbox"
-        id="is_active"
-        name="is_active"
-        checked={formData.is_active}
-        onChange={(e) =>
-            setFormData({ ...formData, is_active: e.target.checked })
-        }
-    />
-    <label htmlFor="is_active">Активный аккаунт</label>
-</div>
+                            <div className="checkbox-field">
+                                <input
+                                    type="checkbox"
+                                    id="is_active"
+                                    name="is_active"
+                                    checked={formData.is_active}
+                                    onChange={(e) =>
+                                        setFormData({ ...formData, is_active: e.target.checked })
+                                    }
+                                />
+                                <label htmlFor="is_active">Активный аккаунт</label>
+                            </div>
                             
                             <div className="modal-actions">
                                 <button type="submit" className="cta-button">
@@ -375,7 +438,7 @@ const UserManagement = () => {
                                             last_name: '',
                                             patronymic: '',
                                             phone: '',
-                                            role: 'Клиент',
+                                            role: defaultRoleName,
                                             is_active: true
                                         });
                                     }}
@@ -393,28 +456,48 @@ const UserManagement = () => {
                     <div className="modal">
                         <h2>Сброс пароля для {selectedUser.email}</h2>
                         
-                        <div className="form-group">
+                        <div className="form-group password-group">
                             <label>Новый пароль *</label>
-                            <input
-                                type="password"
-                                name="newPassword"
-                                value={passwordResetData.newPassword}
-                                onChange={handlePasswordResetChange}
-                                placeholder="••••••••"
-                                required
-                            />
+                            <div className="password-input-wrapper">
+                                <input
+                                    type={showResetNew ? 'text' : 'password'}
+                                    name="newPassword"
+                                    value={passwordResetData.newPassword}
+                                    onChange={handlePasswordResetChange}
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowResetNew((v) => !v)}
+                                    aria-label={showResetNew ? 'Скрыть пароль' : 'Показать пароль'}
+                                >
+                                    {showResetNew ? '👁️' : '👁️‍🗨️'}
+                                </button>
+                            </div>
                         </div>
-                        
-                        <div className="form-group">
+
+                        <div className="form-group password-group">
                             <label>Подтвердите пароль *</label>
-                            <input
-                                type="password"
-                                name="confirmPassword"
-                                value={passwordResetData.confirmPassword}
-                                onChange={handlePasswordResetChange}
-                                placeholder="••••••••"
-                                required
-                            />
+                            <div className="password-input-wrapper">
+                                <input
+                                    type={showResetConfirm ? 'text' : 'password'}
+                                    name="confirmPassword"
+                                    value={passwordResetData.confirmPassword}
+                                    onChange={handlePasswordResetChange}
+                                    placeholder="••••••••"
+                                    required
+                                />
+                                <button
+                                    type="button"
+                                    className="password-toggle"
+                                    onClick={() => setShowResetConfirm((v) => !v)}
+                                    aria-label={showResetConfirm ? 'Скрыть пароль' : 'Показать пароль'}
+                                >
+                                    {showResetConfirm ? '👁️' : '👁️‍🗨️'}
+                                </button>
+                            </div>
                         </div>
                         
                         <div className="modal-actions">
@@ -518,6 +601,8 @@ const UserManagement = () => {
                 <ul>
                     <li>Пароли пользователей хранятся в зашифрованном виде</li>
                     <li>ФИО пользователей шифруются в базе данных</li>
+                    <li>Список ролей подгружается из базы данных</li>
+                    <li>При редактировании администратор меняет только роль и активность аккаунта; личные данные пользователь правит в профиле</li>
                     <li>Все действия администратора записываются в журнал аудита</li>
                     <li>Администратор не может заблокировать самого себя</li>
                 </ul>

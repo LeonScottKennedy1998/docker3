@@ -1,41 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import './Admin.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface AuditLog {
-    id: number;
-    action: string;
-    table_name: string;
-    table_id: number;
-    old_data: any;
-    new_data: any;
-    ip_address?: string;
-    user_agent?: string;
-    created_at: string;
-    user_name: string;
-    user_email: string;
-}
-
-interface AuditStats {
-    actions: Array<{
-        action: string;
-        count: string;
-        first_occurrence: string;
-        last_occurrence: string;
-    }>;
-    tables: Array<{
-        table_name: string;
-        count: string;
-    }>;
-    top_users: Array<{
-        user_name: string;
-        action_count: string;
-    }>;
-    total_logs: number;
-}
+import type { AuditLogRow, AuditStats } from '../../types/admin';
 
 const AuditLog = () => {
-    const [logs, setLogs] = useState<AuditLog[]>([]);
+    const [logs, setLogs] = useState<AuditLogRow[]>([]);
     const [stats, setStats] = useState<AuditStats | null>(null);
     const [actions, setActions] = useState<string[]>([]);
     const [tables, setTables] = useState<string[]>([]);
@@ -52,7 +21,7 @@ const AuditLog = () => {
     });
     
     const [totalLogs, setTotalLogs] = useState(0);
-    const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+    const [selectedLog, setSelectedLog] = useState<AuditLogRow | null>(null);
 
     const fetchAuditLog = async () => {
         
@@ -131,18 +100,20 @@ const AuditLog = () => {
     }, [filters]);
 
     const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setFilters({
-            ...filters,
-            [e.target.name]: e.target.value,
+        const { name, value } = e.target;
+        const parsedValue = name === 'limit' ? parseInt(value, 10) : value;
+        setFilters((prev) => ({
+            ...prev,
+            [name]: parsedValue,
             offset: 0
-        });
+        }));
     };
 
     const handlePageChange = (newOffset: number) => {
-        setFilters({
-            ...filters,
-            offset: newOffset
-        });
+        setFilters((prev) => ({
+            ...prev,
+            offset: Math.max(0, newOffset)
+        }));
     };
 
     const clearFilters = () => {
@@ -173,8 +144,11 @@ const AuditLog = () => {
     if (loading) return <div className="loading">Загрузка журнала аудита...</div>;
     if (error) return <div className="error-message">{error}</div>;
 
-    const totalPages = Math.ceil(totalLogs / filters.limit);
-    const currentPage = Math.floor(filters.offset / filters.limit) + 1;
+    const limitNum = Number(filters.limit) || 50;
+    const offsetNum = Number(filters.offset) || 0;
+    const totalPages = Math.max(1, Math.ceil(totalLogs / limitNum) || 1);
+    const currentPage = Math.floor(offsetNum / limitNum) + 1;
+    const canGoNext = offsetNum + limitNum < totalLogs;
 
     return (
         <div className="admin-page">
@@ -287,8 +261,8 @@ const AuditLog = () => {
 
             <div className="pagination">
                 <button 
-                    onClick={() => handlePageChange(Math.max(0, filters.offset - filters.limit))}
-                    disabled={filters.offset === 0}
+                    onClick={() => handlePageChange(offsetNum - limitNum)}
+                    disabled={offsetNum === 0}
                     className="page-btn"
                 >
                     ← Назад
@@ -299,8 +273,8 @@ const AuditLog = () => {
                 </span>
                 
                 <button 
-                    onClick={() => handlePageChange(filters.offset + filters.limit)}
-                    disabled={filters.offset + filters.limit >= totalLogs}
+                    onClick={() => handlePageChange(offsetNum + limitNum)}
+                    disabled={!canGoNext}
                     className="page-btn"
                 >
                     Вперед →

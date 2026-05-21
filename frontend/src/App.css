@@ -4,14 +4,6 @@
     box-sizing: border-box;
 }
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-    background: #f8f9fa;
-    color: #333;
-    font-size: 16px;
-    line-height: 1.5;
-}
-
 .App {
     min-height: 100vh;
     display: flex;
@@ -19,8 +11,8 @@ body {
 }
 
 .navbar {
-    background: #2c3e50;
-    color: white;
+    background: var(--nav-bg);
+    color: var(--nav-link);
     padding: 1rem 2rem;
     display: flex;
     justify-content: space-between;
@@ -31,7 +23,7 @@ body {
 }
 
 .nav-brand a {
-    color: white;
+    color: var(--nav-link);
     text-decoration: none;
     font-size: 1.5rem;
     font-weight: bold;
@@ -66,7 +58,7 @@ body {
 }
 
 .nav-links a {
-    color: #ecf0f1;
+    color: var(--nav-link);
     text-decoration: none;
     padding: 0.5rem 0.75rem;
     border-radius: 6px;
@@ -157,6 +149,7 @@ body {
 .main-content {
     flex: 1;
     padding: 1.5rem;
+    background: var(--app-bg);
 }
 
 .page {
@@ -166,8 +159,8 @@ body {
 }
 
 .footer {
-    background: #2c3e50;
-    color: #ecf0f1;
+    background: var(--footer-bg);
+    color: var(--footer-text);
     text-align: center;
     padding: 1rem;
     margin-top: auto;
@@ -614,4 +607,99 @@ body {
         padding: 0.4rem 0.8rem;
         font-size: 0.85rem;
     }
+}
+
+.reviews-btn {
+    background: #f39c12;
+    color: white;
+    border: none;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+}
+
+.reviews-btn:hover {
+    background: #e67e22;
+    transform: translateY(-2px);
+}
+
+.product-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.product-actions .add-to-cart-btn {
+    flex: 2;
+}
+
+.product-actions .reviews-btn {
+    flex: 1;
+}
+
+.reviews-header {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.reviews-summary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.avg-rating {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.total-reviews {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+}
+
+.reviews-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.review-item {
+    padding: 1rem;
+    border-bottom: 1px solid #eee;
+}
+
+.review-item:last-child {
+    border-bottom: none;
+}
+
+.review-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.review-user {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.review-date {
+    color: #999;
+    font-size: 0.8rem;
+}
+
+.review-comment {
+    margin-top: 0.5rem;
+    color: #555;
+    line-height: 1.4;
+}
+
+.no-reviews {
+    text-align: center;
+    padding: 2rem;
+    color: #7f8c8d;
 }

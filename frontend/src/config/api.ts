@@ -6,6 +6,7 @@ export const API_URLS = {
         LOGIN: `${API_BASE_URL}/auth/login`,
         PROFILE: `${API_BASE_URL}/auth/profile`,
         UPDATE_PROFILE: `${API_BASE_URL}/auth/profile`,
+        PREFERENCES: `${API_BASE_URL}/auth/preferences`,
         CHANGE_PASSWORD: `${API_BASE_URL}/auth/change-password`,
         LOGOUT: `${API_BASE_URL}/auth/logout`,
         FORGOT_PASSWORD: `${API_BASE_URL}/auth/forgot-password`,
@@ -50,15 +51,23 @@ export const API_URLS = {
         REMOVE_RULE_DISCOUNTS: (ruleId: number | string) => `${API_BASE_URL}/discounts/rules/${ruleId}/discounts`
     },
     
+    CART: {
+        BASE: `${API_BASE_URL}/cart`,
+    },
+
     ORDERS: {
         BASE: `${API_BASE_URL}/orders`,
         MY_ORDERS: `${API_BASE_URL}/orders/my-orders`,
         BY_ID: (id: number | string) => `${API_BASE_URL}/orders/${id}`,
         CREATE: `${API_BASE_URL}/orders`,
         
-        ALL_ORDERS: `${API_BASE_URL}/orders/admin/all`,
+        ALL_ORDERS: (opts?: { archive?: boolean }) =>
+            `${API_BASE_URL}/orders/admin/all${opts?.archive ? '?archive=true' : ''}`,
+        BATCH_UPDATE_STATUS: `${API_BASE_URL}/orders/admin/batch-status`,
         ADMIN_ORDER_DETAILS: (id: number | string) => `${API_BASE_URL}/orders/admin/${id}`,
-        UPDATE_STATUS: (id: number | string) => `${API_BASE_URL}/orders/admin/${id}/status`
+        UPDATE_STATUS: (id: number | string) => `${API_BASE_URL}/orders/admin/${id}/status`,
+        STATUSES: `${API_BASE_URL}/orders/statuses`,
+
     },
     
     
@@ -98,6 +107,7 @@ export const API_URLS = {
     
     USERS: {
         BASE: `${API_BASE_URL}/users`,
+        ROLES: `${API_BASE_URL}/users/roles`,
         BY_ID: (id: number | string) => `${API_BASE_URL}/users/${id}`,
         RESET_PASSWORD: (id: number | string) => `${API_BASE_URL}/users/${id}/reset-password`,
         TOGGLE_BLOCK: (id: number | string, action: 'block' | 'unblock') => `${API_BASE_URL}/users/${id}/${action}`
@@ -108,6 +118,16 @@ export const API_URLS = {
         SUPPLIER_BY_ID: (supplierId: number | string) => `${API_BASE_URL}/procurement/suppliers/${supplierId}`,
         
         ORDERS: `${API_BASE_URL}/procurement/orders`,
+        ORDERS_QUERY: (opts?: { archive?: boolean; statusId?: string | number }) => {
+            const params = new URLSearchParams();
+            if (opts?.archive) params.set('archive', 'true');
+            const sid = opts?.statusId;
+            if (sid != null && String(sid) !== '' && String(sid) !== 'all') {
+                params.set('status_id', String(sid));
+            }
+            const qs = params.toString();
+            return qs ? `${API_BASE_URL}/procurement/orders?${qs}` : `${API_BASE_URL}/procurement/orders`;
+        },
         ORDER_BY_ID: (poId: number | string) => `${API_BASE_URL}/procurement/orders/${poId}`,
         UPDATE_ORDER_STATUS: (poId: number | string) => `${API_BASE_URL}/procurement/orders/${poId}/status`,
         
@@ -120,6 +140,16 @@ export const API_URLS = {
         DASHBOARD_STATS: `${API_BASE_URL}/performance/dashboard-stats`,
         REALTIME: `${API_BASE_URL}/performance/realtime`,
         CLEAR_OLD: `${API_BASE_URL}/performance/clear-old`
+    },
+
+    REVIEWS: {
+        BASE: `${API_BASE_URL}/reviews`,
+        PRODUCT_REVIEWS: (productId: number | string) => `${API_BASE_URL}/reviews/product/${productId}`,
+        CREATE: (productId: number | string) => `${API_BASE_URL}/reviews/product/${productId}`,
+        MY_REVIEWS: `${API_BASE_URL}/reviews/my-reviews`,
+        REVIEWABLE_PRODUCTS: `${API_BASE_URL}/reviews/available`,
+        DELETE: (reviewId: number | string) => `${API_BASE_URL}/reviews/${reviewId}`,
+        UPDATE: (reviewId: number | string) => `${API_BASE_URL}/reviews/${reviewId}`
     },
 };
 

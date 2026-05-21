@@ -1,47 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import './ProcurementDashboard.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
+import type {
+    DeliveryStatus,
+    ProcurementShortProduct,
+    PurchaseOrder,
+    Supplier,
+} from '../../types/procurement';
+import type { ProcurementInlineStarRatingProps } from '../../types/merchandiser';
 
-interface PurchaseOrder {
-    po_id: number;
-    supplier_id: number;
-    supplier_name: string;
-    contact_person: string;
-    supplier_phone: string;
-    delivery_status_id: number;
-    status_name: string;
-    total_amount: number;
-    created_at: string;
-    updated_at: string;
-    items_count: number;
-}
-
-interface DeliveryStatus {
-    status_id: number;
-    status_name: string;
-}
-
-interface Supplier {
-    supplier_id: number;
-    name: string;
-    is_active?: boolean;
-}
-
-interface Product {
-    id: number;
-    name: string;
-    stock: number;
-    price: number;
-    category: string;
-}
-
-// Компонент звездного рейтинга
-const StarRating = ({ value, onChange, readonly = false, size = 'medium' }: { 
-    value: number; 
-    onChange?: (rating: number) => void; 
-    readonly?: boolean; 
-    size?: 'small' | 'medium' | 'large';
-}) => {
+const StarRating = ({
+    value,
+    onChange,
+    readonly = false,
+    size = 'medium',
+}: ProcurementInlineStarRatingProps) => {
     const [hover, setHover] = useState(0);
     
     const getStarSize = () => {
@@ -95,7 +68,7 @@ const OrderManagement = () => {
     const [orders, setOrders] = useState<PurchaseOrder[]>([]);
     const [statuses, setStatuses] = useState<DeliveryStatus[]>([]);
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<ProcurementShortProduct[]>([]);
     const [selectedOrder, setSelectedOrder] = useState<PurchaseOrder | null>(null);
     const [orderDetails, setOrderDetails] = useState<any>(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -123,48 +96,66 @@ const OrderManagement = () => {
         unit_price: 0
     });
 
-    const fetchData = async () => {
+    const [archiveView, setArchiveView] = useState<'active' | 'archive'>('active');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+
+    const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
+
+    const [selectedPoIds, setSelectedPoIds] = useState<number[]>([]);
+    const [bulkTargetStatus, setBulkTargetStatus] = useState('');
+    const [bulkSubmitting, setBulkSubmitting] = useState(false);
+
+    const fetchData = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (!token) {
             console.error('Токен не найден');
             setLoading(prev => ({ ...prev, orders: false, data: false }));
             return;
         }
-        
+
         try {
+            const ordersUrl = API_URLS.PROCUREMENT.ORDERS_QUERY({
+                archive: archiveView === 'archive',
+                statusId: statusFilter === 'all' ? undefined : statusFilter,
+            });
+
             const [ordersRes, statusesRes, suppliersRes] = await Promise.all([
-                fetch(API_URLS.PROCUREMENT.ORDERS, {
-                    headers: getAuthHeaders()
+                fetch(ordersUrl, {
+                    headers: getAuthHeaders(),
                 }),
                 fetch(API_URLS.PROCUREMENT.DELIVERY_STATUSES, {
-                    headers: getAuthHeaders()
+                    headers: getAuthHeaders(),
                 }),
                 fetch(API_URLS.PROCUREMENT.SUPPLIERS, {
-                    headers: getAuthHeaders()
-                })
+                    headers: getAuthHeaders(),
+                }),
             ]);
-            
+
             if (!ordersRes.ok || !statusesRes.ok || !suppliersRes.ok) {
                 throw new Error('Ошибка загрузки данных');
             }
-            
+
             const ordersData = await ordersRes.json();
             const statusesData = await statusesRes.json();
             const suppliersData = await suppliersRes.json();
-            
+
             setOrders(Array.isArray(ordersData) ? ordersData : []);
             setStatuses(Array.isArray(statusesData) ? statusesData : []);
             setSuppliers(Array.isArray(suppliersData) ? suppliersData : []);
-            
+            setSelectedPoIds([]);
+            setBulkTargetStatus('');
+
             setLoading(prev => ({ ...prev, orders: false }));
         } catch (error) {
             console.error('Ошибка загрузки данных:', error);
             setOrders([]);
             setStatuses([]);
             setSuppliers([]);
+            setSelectedPoIds([]);
+            setBulkTargetStatus('');
             setLoading(prev => ({ ...prev, orders: false }));
         }
-    };
+    }, [archiveView, statusFilter]);
 
     const fetchProducts = async () => {
         const token = localStorage.getItem('token');
@@ -207,6 +198,13 @@ const OrderManagement = () => {
 
     useEffect(() => {
         fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        setSelectedOrder(null);
+    }, [archiveView, statusFilter]);
+
+    useEffect(() => {
         fetchProducts();
     }, []);
 
@@ -245,16 +243,23 @@ const OrderManagement = () => {
         fetchOrderDetails(order.po_id);
     };
 
-    const handleUpdateStatus = async (poId: number, statusId: number, rating?: number) => {
-        if (updatingStatus === poId) return;
-        
+    const handleUpdateStatus = async (
+        poId: number,
+        statusId: number,
+        rating?: number,
+        options?: { quiet?: boolean; skipSpinner?: boolean; rethrow?: boolean }
+    ) => {
+        const { quiet = false, skipSpinner = false, rethrow = false } = options || {};
+
+        if (!skipSpinner && updatingStatus === poId) return;
+
         const token = localStorage.getItem('token');
         if (!token) {
             alert('Токен не найден. Пожалуйста, войдите в систему.');
             return;
         }
         
-        setUpdatingStatus(poId);
+        if (!skipSpinner) setUpdatingStatus(poId);
         
         try {
             const body: any = { delivery_status_id: statusId };
@@ -287,12 +292,14 @@ const OrderManagement = () => {
                 )
             );
             
-            if (statusId === 4 && rating) {
-                alert(`✅ Заявка получена!\n⭐ Поставщику выставлена оценка: ${rating}/5`);
-            } else if (statusId === 4) {
-                alert(`✅ Заявка получена без оценки`);
-            } else {
-                alert(result.message || 'Статус обновлен');
+            if (!quiet) {
+                if (statusId === 4 && rating) {
+                    alert(`✅ Заявка получена!\n⭐ Поставщику выставлена оценка: ${rating}/5`);
+                } else if (statusId === 4) {
+                    alert(`✅ Заявка получена без оценки`);
+                } else {
+                    alert(result.message || 'Статус обновлен');
+                }
             }
             
             if (selectedOrder?.po_id === poId) {
@@ -308,8 +315,9 @@ const OrderManagement = () => {
         } catch (error: any) {
             console.error('Ошибка обновления статуса:', error);
             alert(error.message || 'Ошибка обновления статуса');
+            if (rethrow) throw error;
         } finally {
-            setUpdatingStatus(null);
+            if (!skipSpinner) setUpdatingStatus(null);
         }
     };
 
@@ -321,7 +329,6 @@ const OrderManagement = () => {
             return;
         }
         
-        // Закрываем модалку ДО вызова API
         const modalData = { ...ratingModal };
         setRatingModal(null);
         
@@ -335,7 +342,6 @@ const OrderManagement = () => {
     const handleSkipRating = async () => {
         if (!ratingModal) return;
         
-        // Закрываем модалку ДО вызова API
         const modalData = { ...ratingModal };
         setRatingModal(null);
         
@@ -487,9 +493,95 @@ const OrderManagement = () => {
         return status ? status.status_name : 'Неизвестно';
     };
 
+    const shortNextPurchaseLabel = (statusId: number) => {
+        const short: Record<number, string> = {
+            2: 'Подтвердить',
+            3: 'В пути',
+            4: 'Получено',
+            5: 'Отменить'
+        };
+        return short[statusId] ?? getStatusName(statusId);
+    };
+
+    const getAllowedNextPurchaseStatusIds = (statusId: number): number[] => {
+        switch (statusId) {
+            case 1:
+                return [2, 5];
+            case 2:
+                return [3];
+            case 3:
+                return [4];
+            default:
+                return [];
+        }
+    };
+
+    const onPurchaseStatusAction = (order: PurchaseOrder, newStatusId: number) => {
+        if (newStatusId === 4) {
+            setRatingModal({
+                show: true,
+                poId: order.po_id,
+                supplierName: order.supplier_name,
+                currentRating: 0
+            });
+        } else {
+            handleUpdateStatus(order.po_id, newStatusId);
+        }
+    };
+
+    const bulkNextPurchaseStatusIds = useMemo(() => {
+        const selected = orders.filter(o => selectedPoIds.includes(o.po_id));
+        if (selected.length === 0) return [];
+        const st = selected[0].delivery_status_id;
+        if (!selected.every(o => o.delivery_status_id === st)) return [];
+        return getAllowedNextPurchaseStatusIds(st);
+    }, [orders, selectedPoIds]);
+
+    const selectAllPurchaseOrdersOnScreen = () => {
+        if (!Array.isArray(orders) || orders.length === 0) return;
+        if (selectedPoIds.length === orders.length) {
+            setSelectedPoIds([]);
+        } else {
+            setSelectedPoIds(orders.map(o => o.po_id));
+        }
+    };
+
+    const bulkApplyPurchaseStatus = async () => {
+        const target = parseInt(bulkTargetStatus, 10);
+        if (Number.isNaN(target) || selectedPoIds.length === 0) return;
+        if (target === 4) {
+            const ok = window.confirm(
+                `Отметить полученными без оценки поставщика заявок: ${selectedPoIds.length}?`
+            );
+            if (!ok) return;
+        }
+        setBulkSubmitting(true);
+        try {
+            for (const poId of selectedPoIds) {
+                await handleUpdateStatus(poId, target, undefined, {
+                    quiet: true,
+                    skipSpinner: true,
+                    rethrow: true
+                });
+            }
+            alert(`Статус обновлён для заявок: ${selectedPoIds.length}`);
+            setSelectedPoIds([]);
+            setBulkTargetStatus('');
+            await fetchData();
+        } catch {
+        } finally {
+            setBulkSubmitting(false);
+        }
+    };
+
     const activeSuppliers = Array.isArray(suppliers) 
         ? suppliers.filter(s => s.is_active !== false)
         : [];
+
+    const purchaseListTitle =
+        archiveView === 'archive'
+            ? 'Архив заявок (старше 30 дней)'
+            : 'Актуальные заявки (последние 30 дней)';
 
     if (loading.data) return <div className="loading">Загрузка данных...</div>;
 
@@ -512,45 +604,251 @@ const OrderManagement = () => {
                         <span style={{ fontSize: '1.2rem' }}>🚚</span>
                         Быстрый заказ
                     </button>
+
+                    <div className="orders-viewmode-toggle" role="group" aria-label="Вид списка заявок">
+                        <span className="viewmode-label">Вид:</span>
+                        <button
+                            type="button"
+                            className={`viewmode-btn ${viewMode === 'table' ? 'active' : ''}`}
+                            onClick={() => setViewMode('table')}
+                        >
+                            Таблица
+                        </button>
+                        <button
+                            type="button"
+                            className={`viewmode-btn ${viewMode === 'cards' ? 'active' : ''}`}
+                            onClick={() => setViewMode('cards')}
+                        >
+                            Карточки
+                        </button>
+                    </div>
                 </div>
             </div>
 
+            <div className="orders-view-tabs">
+                <button
+                    type="button"
+                    className={`tab-btn ${archiveView === 'active' ? 'active' : ''}`}
+                    onClick={() => {
+                        setArchiveView('active');
+                        setSelectedOrder(null);
+                    }}
+                >
+                    Актуальные
+                </button>
+                <button
+                    type="button"
+                    className={`tab-btn ${archiveView === 'archive' ? 'active' : ''}`}
+                    onClick={() => {
+                        setArchiveView('archive');
+                        setSelectedOrder(null);
+                    }}
+                >
+                    Архив
+                </button>
+            </div>
+            <p className="orders-archive-hint">
+                В списке «Актуальные» — заявки не старше 30 дней с даты создания. Более старые заявки — во вкладке
+                «Архив».
+            </p>
+            <div className="procurement-orders-toolbar-row">
+                <div className="filter-controls">
+                    <span>Фильтр по статусу:</span>
+                    <select
+                        value={statusFilter}
+                        onChange={e => setStatusFilter(e.target.value)}
+                        className="status-filter"
+                    >
+                        <option value="all">Все статусы</option>
+                        {statuses.map(s => (
+                            <option key={s.status_id} value={String(s.status_id)}>
+                                {s.status_name}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {selectedPoIds.length > 0 && (
+                <div className="orders-bulk-bar procurement-bulk-bar">
+                    <span>
+                        Выбрано: <strong>{selectedPoIds.length}</strong>
+                    </span>
+                    <button
+                        type="button"
+                        className="link-like-btn"
+                        onClick={selectAllPurchaseOrdersOnScreen}
+                    >
+                        {Array.isArray(orders) && selectedPoIds.length === orders.length
+                            ? 'Снять выделение'
+                            : 'Выделить все на экране'}
+                    </button>
+                    {bulkNextPurchaseStatusIds.length > 0 ? (
+                        <>
+                            <select
+                                value={bulkTargetStatus}
+                                onChange={e => setBulkTargetStatus(e.target.value)}
+                                className="inline-status-select bulk-status-select"
+                            >
+                                <option value="">Массово перевести в…</option>
+                                {bulkNextPurchaseStatusIds.map(sid => (
+                                    <option key={sid} value={String(sid)}>
+                                        → {getStatusName(sid)}
+                                    </option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                className="cta-button small"
+                                disabled={!bulkTargetStatus || bulkSubmitting}
+                                onClick={bulkApplyPurchaseStatus}
+                            >
+                                {bulkSubmitting ? '…' : 'Применить'}
+                            </button>
+                        </>
+                    ) : (
+                        <span className="bulk-hint-warn">
+                            {(() => {
+                                const sel = orders.filter(o => selectedPoIds.includes(o.po_id));
+                                const mixed =
+                                    sel.length > 1 &&
+                                    !sel.every(o => o.delivery_status_id === sel[0].delivery_status_id);
+                                if (mixed) {
+                                    return 'Выберите заявки с одинаковым статусом для массовой смены.';
+                                }
+                                return 'Для выбранных заявок нет доступных переходов.';
+                            })()}
+                        </span>
+                    )}
+                </div>
+            )}
+
             <div className="orders-container">
-                <div className="orders-sidebar">
-                    <h3>История заявок</h3>
-                    <div className="orders-list">
-                        {Array.isArray(orders) && orders.length > 0 ? (
-                            orders.map(order => (
-                                <div 
-                                    key={order.po_id}
-                                    className={`order-item ${selectedOrder?.po_id === order.po_id ? 'selected' : ''}`}
-                                    onClick={() => handleSelectOrder(order)}
-                                >
-                                    <div className="order-item-header">
-                                        <span className="order-id">Заявка #{order.po_id}</span>
-                                        <span 
-                                            className="status-badge"
-                                            style={{ backgroundColor: getStatusColor(order.delivery_status_id) }}
-                                        >
-                                            {order.status_name}
-                                        </span>
+                <div className={`orders-sidebar ${viewMode === 'table' ? 'orders-sidebar--purchase-table' : ''}`}>
+                    <h3>
+                        {purchaseListTitle} ({Array.isArray(orders) ? orders.length : 0})
+                    </h3>
+                    {viewMode === 'cards' ? (
+                        <div className="orders-list">
+                            {Array.isArray(orders) && orders.length > 0 ? (
+                                orders.map(order => (
+                                    <div 
+                                        key={order.po_id}
+                                        className={`order-item ${selectedOrder?.po_id === order.po_id ? 'selected' : ''}`}
+                                        onClick={() => handleSelectOrder(order)}
+                                    >
+                                        <div className="order-item-header">
+                                            <label
+                                                className="order-checkbox-wrap"
+                                                onClick={e => e.stopPropagation()}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedPoIds.includes(order.po_id)}
+                                                    onChange={() =>
+                                                        setSelectedPoIds(prev =>
+                                                            prev.includes(order.po_id)
+                                                                ? prev.filter(id => id !== order.po_id)
+                                                                : [...prev, order.po_id]
+                                                        )
+                                                    }
+                                                />
+                                            </label>
+                                            <div className="order-item-header-main">
+                                                <span className="order-id">Заявка #{order.po_id}</span>
+                                                <span
+                                                    className="status-badge"
+                                                    style={{
+                                                        backgroundColor: getStatusColor(order.delivery_status_id)
+                                                    }}
+                                                >
+                                                    {order.status_name}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="order-item-details">
+                                            <p><strong>Поставщик:</strong> {order.supplier_name}</p>
+                                            <p><strong>Сумма:</strong> {order.total_amount?.toLocaleString()} ₽</p>
+                                            <p><strong>Товаров:</strong> {order.items_count}</p>
+                                            <p className="order-date">
+                                                {new Date(order.created_at).toLocaleDateString()}
+                                            </p>
+                                        </div>
                                     </div>
-                                    <div className="order-item-details">
-                                        <p><strong>Поставщик:</strong> {order.supplier_name}</p>
-                                        <p><strong>Сумма:</strong> {order.total_amount?.toLocaleString()} ₽</p>
-                                        <p><strong>Товаров:</strong> {order.items_count}</p>
-                                        <p className="order-date">
-                                            {new Date(order.created_at).toLocaleDateString()}
-                                        </p>
-                                    </div>
+                                ))
+                            ) : (
+                                <div className="empty-state">
+                                    <p>Заявок не найдено</p>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="empty-state">
-                                <p>Заявок не найдено</p>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="purchase-table-scroll">
+                            {Array.isArray(orders) && orders.length > 0 ? (
+                                <table className="purchase-orders-data-table">
+                                    <thead>
+                                        <tr>
+                                            <th className="col-check" />
+                                            <th>№</th>
+                                            <th>Дата</th>
+                                            <th>Поставщик</th>
+                                            <th>Сумма</th>
+                                            <th>Поз.</th>
+                                            <th>Статус</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {orders.map(order => (
+                                            <tr
+                                                key={order.po_id}
+                                                className={selectedOrder?.po_id === order.po_id ? 'row-selected' : ''}
+                                                onClick={() => handleSelectOrder(order)}
+                                            >
+                                                <td
+                                                    className="col-check"
+                                                    onClick={e => e.stopPropagation()}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedPoIds.includes(order.po_id)}
+                                                        onChange={() =>
+                                                            setSelectedPoIds(prev =>
+                                                                prev.includes(order.po_id)
+                                                                    ? prev.filter(id => id !== order.po_id)
+                                                                    : [...prev, order.po_id]
+                                                            )
+                                                        }
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                </td>
+                                                <td className="mono">#{order.po_id}</td>
+                                                <td className="nowrap">
+                                                    {new Date(order.created_at).toLocaleDateString('ru-RU')}
+                                                </td>
+                                                <td className="td-supplier">
+                                                    <span className="td-name">{order.supplier_name}</span>
+                                                </td>
+                                                <td>{order.total_amount?.toLocaleString()} ₽</td>
+                                                <td>{order.items_count}</td>
+                                                <td>
+                                                    <span
+                                                        className="status-badge table-badge"
+                                                        style={{ backgroundColor: getStatusColor(order.delivery_status_id) }}
+                                                    >
+                                                        {order.status_name}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            ) : (
+                                <div className="empty-state">
+                                    <p>Заявок не найдено</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 <div className="order-details-panel">
@@ -562,43 +860,52 @@ const OrderManagement = () => {
                                     <p className="customer-info">
                                         Поставщик: {selectedOrder.supplier_name}
                                     </p>
+                                    <p className="status-now-line">
+                                        Текущий статус:{' '}
+                                        <span
+                                            className="status-badge table-badge"
+                                            style={{ backgroundColor: getStatusColor(selectedOrder.delivery_status_id) }}
+                                        >
+                                            {getStatusName(selectedOrder.delivery_status_id)}
+                                        </span>
+                                    </p>
                                     <p>Дата создания: {new Date(selectedOrder.created_at).toLocaleString()}</p>
                                 </div>
                                 <div className="order-actions">
-                                    <select 
-                                        value={selectedOrder.delivery_status_id}
-                                        onChange={(e) => {
-                                            const newStatusId = parseInt(e.target.value);
-                                            if (newStatusId === 4) {
-                                                setRatingModal({
-                                                    show: true,
-                                                    poId: selectedOrder.po_id,
-                                                    supplierName: selectedOrder.supplier_name,
-                                                    currentRating: 0
-                                                });
-                                            } else {
-                                                handleUpdateStatus(selectedOrder.po_id, newStatusId);
-                                            }
-                                        }}
-                                        className="status-select"
-                                        style={{ backgroundColor: getStatusColor(selectedOrder.delivery_status_id) }}
-                                        disabled={updatingStatus === selectedOrder.po_id}
-                                    >
-                                        {Array.isArray(statuses) && statuses.map(status => (
-                                            <option key={status.status_id} value={status.status_id}>
-                                                {status.status_name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    {updatingStatus === selectedOrder.po_id && (
-                                        <span className="updating-indicator">🔄</span>
-                                    )}
-                                    <button 
-                                        className="call-btn" 
+                                    <button
+                                        type="button"
+                                        className="call-btn"
                                         onClick={() => window.open(`tel:${selectedOrder.supplier_phone}`)}
                                     >
                                         📞 {selectedOrder.supplier_phone}
                                     </button>
+
+                                    <div className="single-status-change">
+                                        <span className="single-status-label">Изменить статус</span>
+                                        {getAllowedNextPurchaseStatusIds(selectedOrder.delivery_status_id).length > 0 ? (
+                                            <>
+                                                <div className="status-quick-buttons">
+                                                    {getAllowedNextPurchaseStatusIds(selectedOrder.delivery_status_id).map(sid => (
+                                                        <button
+                                                            key={sid}
+                                                            type="button"
+                                                            className="status-quick-btn"
+                                                            style={{ borderColor: getStatusColor(sid) }}
+                                                            disabled={updatingStatus === selectedOrder.po_id}
+                                                            onClick={() => onPurchaseStatusAction(selectedOrder, sid)}
+                                                        >
+                                                            → {shortNextPurchaseLabel(sid)}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <span className="no-inline-action">Финальный статус — смена недоступна</span>
+                                        )}
+                                        {updatingStatus === selectedOrder.po_id && (
+                                            <span className="updating-indicator">🔄</span>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -633,7 +940,6 @@ const OrderManagement = () => {
                                         </div>
                                     </div>
 
-                                    {/* Карточка с рейтингом поставщика */}
                                     {orderDetails.order?.supplier_rating !== undefined && (
                                         <div className="supplier-rating-card">
                                             <h4>⭐ Рейтинг поставщика</h4>
@@ -886,7 +1192,6 @@ const OrderManagement = () => {
                 </div>
             )}
 
-            {/* Модалка для оценки поставщика */}
             {ratingModal && (
                 <div className="modal-overlay">
                     <div className="modal rating-modal">
@@ -920,7 +1225,7 @@ const OrderManagement = () => {
                             </button>
                         </div>
                         
-                        <p style={{ textAlign: 'center', color: '#666', fontSize: '0.9rem', marginTop: '20px' }}>
+                        <p className="rating-modal-note">
                             Оценка влияет на общий рейтинг поставщика
                         </p>
                     </div>

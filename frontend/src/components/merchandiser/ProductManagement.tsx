@@ -2,21 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Merchandiser.css';
 import { Product, Category, DiscountRule } from '../../types/product';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface FormData {
-    name: string;
-    description: string;
-    price: string;
-    category_id: string;
-    image_url: string;
-    is_active: boolean;
-    stock: string;
-}
-
-interface CategoryFormData {
-    category_name: string;
-    description: string;
-}
+import type { CategoryFormData, ProductExtraPair, ProductFormData } from '../../types/merchandiser';
 
 const ProductManagement = () => {
     const [activeTab, setActiveTab] = useState<'products' | 'categories' | 'discounts' | 'rules'>('products');
@@ -28,7 +14,6 @@ const ProductManagement = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     
-    // Фильтры и поиск
     const [searchQuery, setSearchQuery] = useState('');
     const [categoryFilter, setCategoryFilter] = useState<string>('all');
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -46,15 +31,41 @@ const ProductManagement = () => {
     const [editingRule, setEditingRule] = useState<DiscountRule | null>(null);
     const [showPreviewModal, setShowPreviewModal] = useState(false);
     
-    const [formData, setFormData] = useState<FormData>({
+    const [formData, setFormData] = useState<ProductFormData>({
         name: '',
         description: '',
         price: '',
         category_id: '',
-        image_url: '',
         is_active: true,
         stock: '0'
     });
+
+    const [photoUrls, setPhotoUrls] = useState<string[]>(['']);
+    const [extraPairs, setExtraPairs] = useState<ProductExtraPair[]>([{ key: '', value: '' }]);
+
+    const resetProductForm = () => {
+        setFormData({
+            name: '',
+            description: '',
+            price: '',
+            category_id: '',
+            is_active: true,
+            stock: '0'
+        });
+        setPhotoUrls(['']);
+        setExtraPairs([{ key: '', value: '' }]);
+    };
+
+    const buildImagesPayload = () => photoUrls.map((s) => s.trim()).filter(Boolean);
+
+    const buildExtraInfoPayload = (): Record<string, string> => {
+        const o: Record<string, string> = {};
+        extraPairs.forEach(({ key, value }) => {
+            const k = key.trim();
+            if (k) o[k] = String(value ?? '').trim();
+        });
+        return o;
+    };
 
     const [categoryFormData, setCategoryFormData] = useState<CategoryFormData>({
         category_name: '',
@@ -75,33 +86,36 @@ const ProductManagement = () => {
         end_date: ''
     });
 
-    // Фильтрация товаров
     useEffect(() => {
         let filtered = [...products];
         
-        // Поиск по названию и описанию
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(product => 
-                product.name.toLowerCase().includes(query) ||
-                (product.description && product.description.toLowerCase().includes(query)) ||
-                product.category?.toLowerCase().includes(query)
-            );
+            filtered = filtered.filter((product) => {
+                const extraHay = product.extra_info
+                    ? Object.values(product.extra_info)
+                          .join(' ')
+                          .toLowerCase()
+                    : '';
+                return (
+                    product.name.toLowerCase().includes(query) ||
+                    (product.description && product.description.toLowerCase().includes(query)) ||
+                    product.category?.toLowerCase().includes(query) ||
+                    extraHay.includes(query)
+                );
+            });
         }
         
-        // Фильтр по категории
         if (categoryFilter !== 'all') {
             filtered = filtered.filter(product => product.category === categoryFilter);
         }
         
-        // Фильтр по статусу
         if (statusFilter !== 'all') {
             filtered = filtered.filter(product => 
                 statusFilter === 'active' ? product.is_active : !product.is_active
             );
         }
         
-        // Фильтр по остатку
         if (stockFilter !== 'all') {
             if (stockFilter === 'in-stock') {
                 filtered = filtered.filter(product => product.stock > 0);
@@ -173,7 +187,6 @@ const ProductManagement = () => {
         }
     };
 
-    // Функции для работы с категориями
     const handleAddCategory = async (e: React.FormEvent) => {
         e.preventDefault();
         
@@ -223,7 +236,7 @@ const ProductManagement = () => {
             setShowCategoryForm(false);
             setEditingCategory(null);
             setCategoryFormData({ category_name: '', description: '' });
-            fetchCategories();
+            await Promise.all([fetchCategories(), fetchProducts()]);
             
         } catch (err: any) {
             alert(err.message);
@@ -231,7 +244,7 @@ const ProductManagement = () => {
     };
 
     const handleDeleteCategory = async (categoryId: number) => {
-        if (!window.confirm('Вы уверены, что хотите удалить категорию? Товары в этой категории останутся без категории.')) return;
+        if (!window.confirm('Вы уверены, что хотите удалить категорию?')) return;
         
         try {
             const response = await fetch(API_URLS.PRODUCTS.DELETE_CATEGORY(categoryId), {
@@ -260,7 +273,6 @@ const ProductManagement = () => {
         setShowCategoryForm(true);
     };
 
-    // Остальные функции управления товарами (без изменений)
     const handleFormChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         setFormData({
             ...formData,
@@ -270,8 +282,10 @@ const ProductManagement = () => {
 
     const handleAddProduct = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         try {
+            const images = buildImagesPayload();
+            const extra_info = buildExtraInfoPayload();
             const response = await fetch(API_URLS.PRODUCTS.BASE, {
                 method: 'POST',
                 headers: getAuthHeaders(),
@@ -281,27 +295,19 @@ const ProductManagement = () => {
                     price: parseFloat(formData.price),
                     category_id: parseInt(formData.category_id),
                     stock: parseInt(formData.stock) || 0,
-                    image_url: formData.image_url || undefined
+                    images,
+                    extra_info
                 })
             });
 
             const data = await response.json();
-            
+
             if (!response.ok) throw new Error(data.error || 'Ошибка создания товара');
-            
+
             alert(`Товар успешно создан! Остаток: ${parseInt(formData.stock) || 0}.`);
             setShowAddForm(false);
-            setFormData({
-                name: '',
-                description: '',
-                price: '',
-                category_id: '',
-                stock: '0',
-                image_url: '',
-                is_active: true
-            });
+            resetProductForm();
             fetchProducts();
-            
         } catch (err: any) {
             alert(err.message);
         }
@@ -310,8 +316,10 @@ const ProductManagement = () => {
     const handleUpdateProduct = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!editingProduct) return;
-        
+
         try {
+            const images = buildImagesPayload();
+            const extra_info = buildExtraInfoPayload();
             const response = await fetch(API_URLS.PRODUCTS.UPDATE(editingProduct.id), {
                 method: 'PUT',
                 headers: getAuthHeaders(),
@@ -321,28 +329,20 @@ const ProductManagement = () => {
                     price: parseFloat(formData.price),
                     category_id: parseInt(formData.category_id),
                     stock: parseInt(formData.stock),
-                    image_url: formData.image_url || undefined,
+                    images,
+                    extra_info,
                     is_active: formData.is_active
                 })
             });
 
             const data = await response.json();
-            
+
             if (!response.ok) throw new Error(data.error || 'Ошибка обновления товара');
-            
+
             alert('Товар успешно обновлен!');
             setEditingProduct(null);
-            setFormData({
-                name: '',
-                description: '',
-                price: '',
-                category_id: '',
-                stock: '0',
-                image_url: '',
-                is_active: true
-            });
+            resetProductForm();
             fetchProducts();
-            
         } catch (err: any) {
             alert(err.message);
         }
@@ -574,11 +574,26 @@ const ProductManagement = () => {
             name: product.name,
             description: product.description || '',
             price: product.price.toString(),
-            category_id: categories.find(c => c.category_name === product.category)?.category_id.toString() || '',
+            category_id:
+                categories.find((c) => c.category_name === product.category)?.category_id.toString() ||
+                '',
             stock: product.stock.toString(),
-            image_url: product.image_url || '',
             is_active: product.is_active
         });
+        const imgs =
+            product.images && product.images.length > 0
+                ? [...product.images]
+                : product.image_url
+                  ? [product.image_url]
+                  : [];
+        setPhotoUrls(imgs.length ? imgs : ['']);
+        const ext = product.extra_info || {};
+        const keys = Object.keys(ext);
+        setExtraPairs(
+            keys.length
+                ? keys.map((k) => ({ key: k, value: String(ext[k] ?? '') }))
+                : [{ key: '', value: '' }]
+        );
     };
 
     const startEditRule = (rule: DiscountRule) => {
@@ -754,8 +769,11 @@ const ProductManagement = () => {
                 </div>
                 
                 {activeTab === 'products' && (
-                    <button 
-                        onClick={() => setShowAddForm(true)}
+                    <button
+                        onClick={() => {
+                            resetProductForm();
+                            setShowAddForm(true);
+                        }}
                         className="cta-button"
                     >
                         + Добавить товар
@@ -864,9 +882,9 @@ const ProductManagement = () => {
                                         <td>#{product.id}</td>
                                         <td>
                                             <div className="product-cell">
-                                                {product.image_url && (
+                                                {(product.images?.[0] || product.image_url) && (
                                                     <img 
-                                                        src={product.image_url} 
+                                                        src={product.images?.[0] || product.image_url} 
                                                         alt={product.name}
                                                         className="product-thumb"
                                                     />
@@ -927,7 +945,13 @@ const ProductManagement = () => {
                                     Сбросить фильтры
                                 </button>
                             ) : (
-                                <button onClick={() => setShowAddForm(true)} className="cta-button">
+                                <button
+                                    onClick={() => {
+                                        resetProductForm();
+                                        setShowAddForm(true);
+                                    }}
+                                    className="cta-button"
+                                >
                                     Добавить первый товар
                                 </button>
                             )}
@@ -954,7 +978,11 @@ const ProductManagement = () => {
                                     <div className="category-meta">
                                         <span className="category-products-count">
                                             Товаров: {
-                                                products.filter(p => p.category === category.category_name).length
+                                                products.filter((p) =>
+                                                    p.category_id != null
+                                                        ? p.category_id === category.category_id
+                                                        : p.category === category.category_name
+                                                ).length
                                             }
                                         </span>
                                     </div>
@@ -971,7 +999,11 @@ const ProductManagement = () => {
                                         onClick={() => handleDeleteCategory(category.category_id)}
                                         className="danger-btn"
                                         title="Удалить"
-                                        disabled={products.some(p => p.category === category.category_name)}
+                                        disabled={products.some((p) =>
+                                            p.category_id != null
+                                                ? p.category_id === category.category_id
+                                                : p.category === category.category_name
+                                        )}
                                     >
                                         🗑️
                                     </button>
@@ -1076,9 +1108,9 @@ const ProductManagement = () => {
                                 .map(product => (
                                     <div key={product.id} className="product-card-small">
                                         <div className="product-card-content">
-                                            {product.image_url && (
+                                            {(product.images?.[0] || product.image_url) && (
                                                 <img 
-                                                    src={product.image_url} 
+                                                    src={product.images?.[0] || product.image_url} 
                                                     alt={product.name}
                                                     className="product-thumb"
                                                 />
@@ -1227,7 +1259,6 @@ const ProductManagement = () => {
                 </div>
             )}
 
-            {/* Модальные окна (без изменений) */}
             {(showAddForm || editingProduct) && (
                 <div className="modal-overlay">
                     <div className="modal">
@@ -1307,30 +1338,115 @@ const ProductManagement = () => {
                             </div>
                             
                             <div className="form-group">
-                                <label>Ссылка на изображение</label>
-                                <input
-                                    type="url"
-                                    name="image_url"
-                                    value={formData.image_url}
-                                    onChange={handleFormChange}
-                                    placeholder="https://example.com/image.jpg"
-                                />
+                                <label>Ссылки на фото (по одной в строке)</label>
+                                <p className="form-hint">
+                                    Укажите прямые URL изображений. Первое фото станет обложкой в каталоге.
+                                </p>
+                                {photoUrls.map((url, idx) => (
+                                    <div key={idx} className="form-row align-end" style={{ marginBottom: 8 }}>
+                                        <input
+                                            type="url"
+                                            value={url}
+                                            onChange={(e) => {
+                                                const next = [...photoUrls];
+                                                next[idx] = e.target.value;
+                                                setPhotoUrls(next);
+                                            }}
+                                            placeholder="https://..."
+                                            style={{ flex: 1 }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="secondary-btn"
+                                            onClick={() =>
+                                                setPhotoUrls((prev) =>
+                                                    prev.length > 1 ? prev.filter((_, i) => i !== idx) : ['']
+                                                )
+                                            }
+                                        >
+                                            Удалить
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    className="secondary-btn"
+                                    onClick={() => setPhotoUrls((prev) => [...prev, ''])}
+                                >
+                                    + Добавить ещё фото
+                                </button>
+                            </div>
+
+                            <div className="form-group">
+                                <label>Доп. характеристики</label>
+                                <p className="form-hint">
+                                    Любые пары «название — значение», например: Размер — L, Материал — хлопок.
+                                </p>
+                                {extraPairs.map((pair, idx) => (
+                                    <div key={idx} className="form-row" style={{ marginBottom: 8, gap: 8 }}>
+                                        <input
+                                            type="text"
+                                            value={pair.key}
+                                            placeholder="Название (например, Размер)"
+                                            onChange={(e) => {
+                                                const next = [...extraPairs];
+                                                next[idx] = { ...next[idx], key: e.target.value };
+                                                setExtraPairs(next);
+                                            }}
+                                            style={{ flex: 1 }}
+                                        />
+                                        <input
+                                            type="text"
+                                            value={pair.value}
+                                            placeholder="Значение"
+                                            onChange={(e) => {
+                                                const next = [...extraPairs];
+                                                next[idx] = { ...next[idx], value: e.target.value };
+                                                setExtraPairs(next);
+                                            }}
+                                            style={{ flex: 1 }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="secondary-btn"
+                                            onClick={() =>
+                                                setExtraPairs((prev) =>
+                                                    prev.length > 1
+                                                        ? prev.filter((_, i) => i !== idx)
+                                                        : [{ key: '', value: '' }]
+                                                )
+                                            }
+                                        >
+                                            Удалить
+                                        </button>
+                                    </div>
+                                ))}
+                                <button
+                                    type="button"
+                                    className="secondary-btn"
+                                    onClick={() =>
+                                        setExtraPairs((prev) => [...prev, { key: '', value: '' }])
+                                    }
+                                >
+                                    + Добавить характеристику
+                                </button>
                             </div>
                             
                             {editingProduct && (
-                                <div className="form-group">
-                                    <label>
-                                        <input
-                                            type="checkbox"
-                                            name="is_active"
-                                            checked={formData.is_active}
-                                            onChange={(e) => setFormData({
+                                <div className="checkbox-field">
+                                    <input
+                                        type="checkbox"
+                                        id="product_is_active"
+                                        name="is_active"
+                                        checked={formData.is_active}
+                                        onChange={(e) =>
+                                            setFormData({
                                                 ...formData,
                                                 is_active: e.target.checked
-                                            })}
-                                        />
-                                        Активный товар
-                                    </label>
+                                            })
+                                        }
+                                    />
+                                    <label htmlFor="product_is_active">Активный товар (на витрине)</label>
                                 </div>
                             )}
                             
@@ -1338,21 +1454,13 @@ const ProductManagement = () => {
                                 <button type="submit" className="cta-button">
                                     {editingProduct ? 'Сохранить изменения' : 'Добавить товар'}
                                 </button>
-                                <button 
+                                <button
                                     type="button"
                                     className="secondary-btn"
                                     onClick={() => {
                                         setShowAddForm(false);
                                         setEditingProduct(null);
-                                        setFormData({
-                                            name: '',
-                                            description: '',
-                                            price: '',
-                                            category_id: '',
-                                            image_url: '',
-                                            is_active: true,
-                                            stock: '1'
-                                        });
+                                        resetProductForm();
                                     }}
                                 >
                                     Отмена

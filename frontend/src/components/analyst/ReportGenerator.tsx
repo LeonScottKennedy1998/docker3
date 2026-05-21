@@ -1,20 +1,7 @@
 import React, { useState } from 'react';
 import './Analytics.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface ReportSummary {
-    totalOrders: number;
-    totalRevenue: number;
-    avgOrderValue: number;
-    uniqueCustomers: number;
-}
-
-interface StatusStat {
-    status: string;
-    count: number;
-    revenue: number;
-    percentage: number;
-}
+import type { ReportSummary, StatusStat } from '../../types/analyst';
 
 const ReportGenerator = () => {
     const [startDate, setStartDate] = useState('');
@@ -59,6 +46,10 @@ const ReportGenerator = () => {
 
             console.log('Ответ сервера:', response.status);
 
+            if (!response.ok) {
+                throw new Error(`Ошибка сервера: ${response.status}`);
+            }
+
             if (format === 'csv') {
                 const blob = await response.blob();
                 
@@ -71,7 +62,7 @@ const ReportGenerator = () => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `report_${startDate}_to_${endDate}.csv`;
+                a.download = `sales_report_${startDate}_to_${endDate}.csv`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);

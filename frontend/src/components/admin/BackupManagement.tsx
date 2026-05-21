@@ -1,19 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { API_URLS, getAuthHeaders } from '../../config/api';
 import './BackupManagement.css';
-
-interface BackupFile {
-    filename: string;
-    size: string;
-    created: string;
-    type: 'SQL';
-}
-
-interface BackupStats {
-    totalBackups: number;
-    totalSize: string;
-    lastBackup: string | null;
-}
+import type { BackupFile, BackupStats } from '../../types/admin';
 
 const BackupManagement = () => {
     const [backups, setBackups] = useState<BackupFile[]>([]);

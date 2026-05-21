@@ -11,6 +11,9 @@
     border-radius: 12px;
     padding: 1.5rem;
     box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .cart-table {
@@ -94,8 +97,26 @@
     border-color: #3498db;
 }
 
+.quantity-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.quantity-btn:disabled:hover {
+    background: white;
+    border-color: #ddd;
+    transform: none;
+}
+
 .quantity-btn:active {
     transform: scale(0.95);
+}
+
+.stock-limit-note {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.8rem;
+    color: #7f8c8d;
 }
 
 .remove-btn {
@@ -197,6 +218,37 @@
     border-radius: 8px;
     font-size: 1rem;
     transition: all 0.3s;
+}
+
+.phone-input-row {
+    display: grid;
+    grid-template-columns: 96px 1fr;
+    gap: 0.5rem;
+}
+
+.phone-input-row select,
+.phone-input-row input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+    transition: all 0.3s;
+}
+
+.phone-input-row select:focus,
+.phone-input-row input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.phone-preview {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.85rem;
+    color: #5a6268;
 }
 
 .form-group input:focus {
@@ -378,6 +430,7 @@
     
     .cart-items {
         padding: 1rem;
+        max-height: 55vh;
     }
     
     .cart-table {
@@ -503,6 +556,12 @@
         color: white;
         transform: scale(1.1);
     }
+
+    .quantity-btn:disabled:hover {
+        background: #f8f9fa;
+        color: #3498db;
+        transform: none;
+    }
     
     .quantity-btn:active {
         transform: scale(0.95);
@@ -557,6 +616,17 @@
     }
     
     .form-group input {
+        padding: 0.9rem;
+        font-size: 16px;
+        min-height: 50px;
+    }
+
+    .phone-input-row {
+        grid-template-columns: 88px 1fr;
+    }
+
+    .phone-input-row select,
+    .phone-input-row input {
         padding: 0.9rem;
         font-size: 16px;
         min-height: 50px;

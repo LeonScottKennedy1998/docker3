@@ -3,17 +3,10 @@ import {BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveC
 import './Analytics.css';
 import ReportGenerator from './ReportGenerator';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface DashboardStats {
-    totalUsers: number;
-    totalProducts: number;
-    totalOrders: number;
-    totalRevenue: number;
-    popularProducts: Array<{ name: string; orders_count: number; total_quantity: number; revenue: number }>;
-}
+import type { AnalystDashboardStats } from '../../types/analyst';
 
 const AnalyticsDashboard = () => {
-    const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [stats, setStats] = useState<AnalystDashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [activeTab, setActiveTab] = useState<'dashboard' | 'reports'>('dashboard');

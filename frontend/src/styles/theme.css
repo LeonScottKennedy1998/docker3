@@ -1,0 +1,77 @@
+:root,
+[data-theme="light"] {
+    --app-bg: #f8f9fa;
+    --app-text: #333333;
+    --app-heading: #2c3e50;
+    --page-muted: #7f8c8d;
+    --card-bg: #ffffff;
+    --card-border: #e0e0e0;
+    --surface-subtle: #f4f6f8;
+    --input-bg: #ffffff;
+    --nav-bg: #2c3e50;
+    --nav-link: #ecf0f1;
+    --footer-bg: #2c3e50;
+    --footer-text: #ecf0f1;
+    --shadow: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] {
+    --app-bg: #0f1216;
+    --app-text: #e8ecf1;
+    --app-heading: #f4f6f9;
+    --page-muted: #b4bcc7;
+    --card-bg: #1a1f26;
+    --card-border: #2d3540;
+    --surface-subtle: #141920;
+    --input-bg: #12171e;
+    --nav-bg: #1a2230;
+    --nav-link: #e3e6ea;
+    --footer-bg: #141a22;
+    --footer-text: #cfd6df;
+    --shadow: rgba(0, 0, 0, 0.35);
+    --product-price-color: #8ee4b8;
+    --modal-body-text: #c8d2de;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    background: var(--app-bg);
+    color: var(--app-text);
+    font-size: 16px;
+    line-height: 1.5;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.page:not(.auth-page) h1,
+.page:not(.auth-page) h2 {
+    color: var(--app-heading);
+}
+
+[data-theme='dark'] .modal-content {
+    background: var(--card-bg);
+    color: var(--app-text);
+}
+
+[data-theme='dark'] .product-modal-info h2,
+[data-theme='dark'] .product-modal-info h3 {
+    color: var(--app-heading);
+}
+
+[data-theme='dark'] .product-card {
+    background: var(--card-bg);
+    color: var(--app-text);
+    box-shadow: 0 3px 12px var(--shadow);
+}
+
+[data-theme='dark'] .product-title {
+    color: var(--app-heading);
+}
+
+[data-theme='dark'] .product-category,
+[data-theme='dark'] .product-description {
+    color: var(--page-muted);
+}
+
+[data-theme='dark'] .product-price {
+    color: var(--product-price-color);
+}

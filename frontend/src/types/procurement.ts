@@ -9,6 +9,47 @@ export interface Supplier {
     created_at: string;
     total_orders?: number;
     total_spent?: number;
+    completed_orders?: number;
+    cancelled_orders?: number;
+    total_revenue?: number;
+    avg_order_amount?: number;
+    last_order_date?: string;
+}
+
+export interface ProcurementShortProduct {
+    id: number;
+    name: string;
+    stock: number;
+    price: number;
+    category: string;
+}
+
+export interface StockAnalysisProduct {
+    id: number;
+    name: string;
+    stock: number;
+    price: number;
+    category: string;
+    category_name?: string;
+    product_name?: string;
+}
+
+export interface StockRecommendation extends StockAnalysisProduct {
+    recommended_qty: number;
+    urgency_level: 'critical' | 'high' | 'medium' | 'low';
+    estimated_usage_days: number;
+    avg_monthly_sales?: number;
+    sold_90_days?: number;
+    sold_365_days?: number;
+    orders_365_days?: number;
+    last_sale_at?: string | null;
+    stock_level?: string;
+    monthly_velocity?: number;
+    sales_pace?: string;
+    sales_pace_label?: string;
+    months_of_cover?: number | null;
+    recommendation?: string;
+    procurement_hint?: string;
 }
 
 export interface PurchaseOrder {

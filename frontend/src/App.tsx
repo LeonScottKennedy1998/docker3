@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, useNavigate, Navigate, useLocation } from 'react-router-dom';
 import MerchandiserDashboard from './components/merchandiser/MerchandiserDashboard';
 import AnalystDashboard from './components/analyst/AnalystDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
@@ -7,7 +7,7 @@ import EditProfile from './components/profile/EditProfile';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 import OrderSuccess from './components/order/OrderSuccess';
-import {CartItem } from './types/product';
+import { CartItem } from './types/product';
 import WishlistPage from './components/wishlist/WishlistPage';
 import CartPage from './components/cart/CartPage';
 import ProcurementDashboard   from './components/procurement/ProcurementDashboard';
@@ -18,29 +18,107 @@ import RegisterPage from './components/auth/RegisterPage';
 import CatalogPage from './components/common/CatalogPage';
 import OrdersPage from './components/order/OrdersPage';
 import HomePage from './components/common/HomePage';
+import MyReviewsPage from './components/reviews/MyReviewsPage';
+import ProductReviewsPage from './components/reviews/ProductReviewsPage';
 
 import './App.css';
+import type { AddToCartPayload, SessionUser } from './types/app';
+import type { ThemeRouteSyncProps } from './types/props';
+import {
+    cartNeedsReplaceFromServer,
+    fetchServerCart,
+    mergeGuestCartWithServer,
+    putServerCart,
+    readGuestCart,
+    userCartCacheKey,
+    writeGuestCart,
+} from './utils/serverCart';
+
+function ThemeRouteSync({ user }: ThemeRouteSyncProps) {
+    const location = useLocation();
+    useEffect(() => {
+        const path = location.pathname;
+        const authPublic =
+            path === '/login' ||
+            path === '/register' ||
+            path === '/forgot-password' ||
+            path.startsWith('/reset-password/');
+        if (authPublic) {
+            document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+            const theme = user && user.theme === 'dark' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        }
+    }, [user, location.pathname]);
+    return null;
+}
 
 function App() {
-    const [user, setUser] = useState<any>(() => {
+    const [user, setUser] = useState<SessionUser | null>(() => {
         const savedUser = localStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
     });
     
     const [cart, setCart] = useState<CartItem[]>(() => {
-        const savedCart = localStorage.getItem('cart');
-        return savedCart ? JSON.parse(savedCart) : [];
+        try {
+            const token = localStorage.getItem('token');
+            const raw = localStorage.getItem('user');
+            const u = raw ? (JSON.parse(raw) as SessionUser) : null;
+            if (token && u?.id) {
+                const ck = localStorage.getItem(userCartCacheKey(u.id));
+                return ck ? JSON.parse(ck) : [];
+            }
+            return readGuestCart();
+        } catch {
+            return [];
+        }
     });
 
+    
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     useEffect(() => {
-        localStorage.setItem('cart', JSON.stringify(cart));
-    }, [cart]);
+        const token = localStorage.getItem('token');
+        const uid = user?.id;
+        if (!token || !uid) {
+            writeGuestCart(cart);
+            return;
+        }
+        const t = window.setTimeout(() => {
+            putServerCart(token, cart)
+                .then((items) => {
+                    localStorage.setItem(userCartCacheKey(uid), JSON.stringify(items));
+                    if (cartNeedsReplaceFromServer(cart, items)) {
+                        setCart(items);
+                    }
+                })
+                .catch(() => {});
+        }, 550);
+        return () => window.clearTimeout(t);
+    }, [cart, user?.id]);
 
     useEffect(() => {
-    const handleCartUpdate = (event: any) => {
-        const newCart = event.detail;
+        const token = localStorage.getItem('token');
+        const uid = user?.id;
+        if (!token || !uid) return;
+        let cancelled = false;
+        void (async () => {
+            try {
+                const items = await fetchServerCart(token);
+                if (cancelled) return;
+                setCart(items);
+                localStorage.setItem(userCartCacheKey(uid), JSON.stringify(items));
+            } catch {
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [user?.id]);
+
+    useEffect(() => {
+    const handleCartUpdate = (event: Event) => {
+        const newCart = (event as CustomEvent<CartItem[]>).detail;
         setCart(newCart);
     };
 
@@ -51,16 +129,34 @@ function App() {
     };
     }, []);
 
-    const handleLogin = (userData: any) => {
-        console.log('📋 Данные пользователя при входе:', userData);
+    const handleLogin = async (userData: SessionUser) => {
+        const token = localStorage.getItem('token');
+        let merged: CartItem[] | null = null;
+        if (token && userData.id) {
+            try {
+                merged = await mergeGuestCartWithServer(token, cart);
+            } catch {
+                merged = null;
+            }
+        }
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
+        if (merged) {
+            setCart(merged);
+            if (userData.id) {
+                localStorage.setItem(userCartCacheKey(userData.id), JSON.stringify(merged));
+            }
+        }
     };
 
     const handleLogout = () => {
     if (window.confirm('Вы уверены, что хотите выйти?')) {
+        const uid = user?.id;
         localStorage.removeItem('token');
         localStorage.removeItem('user');
+        if (uid) {
+            localStorage.removeItem(userCartCacheKey(uid));
+        }
         setUser(null);
         setCart([]);
         setIsMenuOpen(false);
@@ -69,28 +165,58 @@ function App() {
     };
 
 
-    const addToCart = (product: any, showAlert: boolean = true) => {
-    console.log('Добавление в корзину:', product);
-    
-    const existingItemIndex = cart.findIndex(item => 
-        item.productId === (product.productId || product.id)
-    );
+    const addToCart = (product: AddToCartPayload, showAlert: boolean = true) => {
+        const stock = typeof product.stock === 'number' ? product.stock : undefined;
+        if (stock !== undefined && stock <= 0) {
+            if (showAlert) alert('Товар закончился, заказ сейчас невозможен.');
+            return;
+        }
 
-    if (existingItemIndex > -1) {
-        const updatedCart = [...cart];
-        updatedCart[existingItemIndex].quantity += product.quantity || 1;
-        setCart(updatedCart);
-        
-    } else {
-        setCart([...cart, {
-            productId: product.productId || product.id,
-            name: product.name,
-            price: product.price,
-            quantity: product.quantity || 1
-        }]);
-        
-    }
-};
+        const pid = product.productId ?? product.id;
+        if (pid == null) return;
+        const unitPrice: number =
+            product.has_discount && product.final_price != null
+                ? product.final_price
+                : product.price;
+        const addQty = Math.max(1, product.quantity ?? 1);
+        const maxQty = stock ?? Number.POSITIVE_INFINITY;
+
+        const existingItemIndex = cart.findIndex((item) => item.productId === pid);
+
+        if (existingItemIndex > -1) {
+            const updatedCart = [...cart];
+            const nextQty = Math.min(updatedCart[existingItemIndex].quantity + addQty, maxQty);
+            if (nextQty === updatedCart[existingItemIndex].quantity && stock !== undefined) {
+                if (showAlert) alert('Больше нет в наличии на складе.');
+                return;
+            }
+            updatedCart[existingItemIndex] = {
+                ...updatedCart[existingItemIndex],
+                quantity: nextQty,
+                price: unitPrice,
+                stock
+            };
+            setCart(updatedCart);
+        } else {
+            const q = Math.min(addQty, maxQty);
+            if (q < 1) {
+                if (showAlert) alert('Товар закончился');
+                return;
+            }
+            setCart([
+                ...cart,
+                {
+                    productId: pid,
+                    name: product.name,
+                    price: unitPrice,
+                    quantity: q,
+                    stock
+                }
+            ]);
+        }
+    };
+
+
 
     const updateCart = (newCart: CartItem[]) => {
         setCart(newCart);
@@ -110,16 +236,19 @@ function App() {
             return;
         }
         
-        setCart(cart.map(item => 
-            item.productId === productId 
-                ? { ...item, quantity }
-                : item
-        ));
+        setCart(cart.map(item => {
+            if (item.productId !== productId) {
+                return item;
+            }
+
+            const maxQty = typeof item.stock === 'number' ? item.stock : Number.POSITIVE_INFINITY;
+            return { ...item, quantity: Math.min(quantity, maxQty) };
+        }));
     };
 
     useEffect(() => {
-        const handleUserUpdate = (event: any) => {
-            const updatedUser = event.detail;
+        const handleUserUpdate = (event: Event) => {
+            const updatedUser = (event as CustomEvent<SessionUser>).detail;
             setUser(updatedUser);
             localStorage.setItem('user', JSON.stringify(updatedUser));
         };
@@ -137,6 +266,7 @@ function App() {
 
     return (
         <BrowserRouter>
+            <ThemeRouteSync user={user} />
             <div className="App">
                 <nav className="navbar">
                     <div className="nav-brand">
@@ -189,6 +319,7 @@ function App() {
                                             Избранное
                                         </Link>
                                         <Link to="/orders" onClick={() => setIsMenuOpen(false)}>Мои заказы</Link>
+                                        <Link to="/my-reviews">Мои отзывы</Link>
                                     </>
                                 )}
                                 <Link to="/profile/edit" className="profile-link" onClick={() => setIsMenuOpen(false)}>
@@ -253,6 +384,9 @@ function App() {
                             )
                         } />
                         <Route path="/orders" element={<OrdersPage />} />
+                        <Route path="/product-reviews/:productId" element={<ProductReviewsPage />} />
+                        <Route path="/my-reviews" element={<MyReviewsPage />} />
+
                         
                         <Route path="/forgot-password" element={<ForgotPassword />} />
                         <Route path="/reset-password/:token" element={<ResetPassword />} />
@@ -399,6 +533,8 @@ function App() {
                             )
                         } />
                     </Routes>
+
+                    
                 </div>
 
                 <footer className="footer">

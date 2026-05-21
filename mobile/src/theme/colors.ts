@@ -1,0 +1,38 @@
+export const colors = {
+  light: {
+    appBg: '#f8f9fa',
+    text: '#333333',
+    heading: '#2c3e50',
+    muted: '#7f8c8d',
+    card: '#ffffff',
+    border: '#e0e0e0',
+    surface: '#f4f6f8',
+    nav: '#2c3e50',
+    navText: '#ecf0f1',
+    primary: '#3498db',
+    success: '#27ae60',
+    danger: '#e74c3c',
+    accent: '#f39c12',
+    price: '#2ecc71',
+    shadow: 'rgba(0,0,0,0.08)',
+  },
+  dark: {
+    appBg: '#0f1216',
+    text: '#e8ecf1',
+    heading: '#f4f6f9',
+    muted: '#b4bcc7',
+    card: '#1a1f26',
+    border: '#2d3540',
+    surface: '#141920',
+    nav: '#1a2230',
+    navText: '#e3e6ea',
+    primary: '#3498db',
+    success: '#2ecc71',
+    danger: '#e74c3c',
+    accent: '#f39c12',
+    price: '#8ee4b8',
+    shadow: 'rgba(0,0,0,0.35)',
+  },
+} as const;
+
+export type ColorScheme = keyof typeof colors;

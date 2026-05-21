@@ -1,32 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Order, Product } from '../../types/product';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { CartItem, Product } from '../../types/product';
 import { API_URLS, getAuthHeaders } from '../../config/api';
 import ProductModal from '../common/ProductModal';
 import './OrdersPage.css';
-
-interface OrderItem {
-    product_id: number;
-    product_name: string;
-    quantity: number;
-    price: number;
-    total: number;
-    stock?: number;
-}
-
-interface EnhancedOrder extends Order {
-    items: OrderItem[];
-}
+import type { CustomerOrderItem, CustomerOrderWithItems } from '../../types/orders';
+import { fetchServerCart, readGuestCart, mergeCarts, persistLoggedInCart } from '../../utils/serverCart';
 
 const OrdersPage = () => {
-    const [orders, setOrders] = useState<EnhancedOrder[]>([]);
-    const [filteredOrders, setFilteredOrders] = useState<EnhancedOrder[]>([]);
+    const navigate = useNavigate();
+    const [orders, setOrders] = useState<CustomerOrderWithItems[]>([]);
+    const [filteredOrders, setFilteredOrders] = useState<CustomerOrderWithItems[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
     
-    // Фильтры
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [dateFrom, setDateFrom] = useState<string>('');
     const [dateTo, setDateTo] = useState<string>('');
@@ -37,9 +26,7 @@ const OrdersPage = () => {
     }, []);
 
     useEffect(() => {
-        if (orders.length > 0) {
-            applyFilters();
-        }
+        applyFilters();
     }, [orders, statusFilter, dateFrom, dateTo, searchQuery]);
 
     const fetchOrders = async () => {
@@ -61,31 +48,7 @@ const OrdersPage = () => {
             }
 
             const data = await response.json();
-            
-            // Получаем актуальные остатки товаров для каждого заказа
-            const ordersWithStock = await Promise.all(
-                data.map(async (order: EnhancedOrder) => {
-                    const itemsWithStock = await Promise.all(
-                        (order.items || []).map(async (item: OrderItem) => {
-                            try {
-                                const productResponse = await fetch(API_URLS.PRODUCTS.BY_ID(item.product_id), {
-                                    headers: getAuthHeaders()
-                                });
-                                if (productResponse.ok) {
-                                    const product = await productResponse.json();
-                                    return { ...item, stock: product.stock || 0 };
-                                }
-                            } catch (err) {
-                                console.error(`Ошибка загрузки остатка для товара ${item.product_id}:`, err);
-                            }
-                            return { ...item, stock: 0 };
-                        })
-                    );
-                    return { ...order, items: itemsWithStock };
-                })
-            );
-            
-            setOrders(ordersWithStock);
+            setOrders(data);
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -101,34 +64,26 @@ const OrdersPage = () => {
 
         let filtered = [...orders];
 
-        // Фильтр по статусу
         if (statusFilter !== 'all') {
             filtered = filtered.filter(order => order.status === statusFilter);
         }
 
-        // Фильтр по дате от
         if (dateFrom) {
             filtered = filtered.filter(order => 
                 new Date(order.created_at) >= new Date(dateFrom)
             );
         }
 
-        // Фильтр по дате до
         if (dateTo) {
             filtered = filtered.filter(order => 
                 new Date(order.created_at) <= new Date(dateTo)
             );
         }
 
-        // Фильтр по поиску (по номеру заказа или названию товара)
         if (searchQuery && searchQuery.trim() !== '') {
             const query = searchQuery.toLowerCase().trim();
             filtered = filtered.filter(order => {
-                // Поиск по номеру заказа
-                if (order.id.toString().includes(query)) {
-                    return true;
-                }
-                // Поиск по названиям товаров
+                if (order.id.toString().includes(query)) return true;
                 if (order.items && Array.isArray(order.items)) {
                     return order.items.some(item => 
                         item.product_name && item.product_name.toLowerCase().includes(query)
@@ -141,55 +96,116 @@ const OrdersPage = () => {
         setFilteredOrders(filtered);
     };
 
+    const mergeCartWithNewProduct = useCallback(async (product: Product): Promise<CartItem[]> => {
+        const token = localStorage.getItem('token');
+        const rawUser = localStorage.getItem('user');
+        let base: CartItem[];
+        if (token && rawUser) {
+            try {
+                base = await fetchServerCart(token);
+            } catch {
+                base = readGuestCart();
+            }
+        } else {
+            base = readGuestCart();
+        }
+        const existing = base.find((x) => x.productId === product.id);
+        const priceRaw =
+            product.has_discount && product.final_price != null ? product.final_price : product.price;
+        const price = typeof priceRaw === 'number' ? priceRaw : Number(priceRaw);
+        if (existing) {
+            return base.map((x) =>
+                x.productId === product.id
+                    ? { ...x, quantity: x.quantity + 1, price, name: product.name }
+                    : x
+            );
+        }
+        return [
+            ...base,
+            {
+                productId: product.id,
+                name: product.name,
+                price,
+                quantity: 1,
+            },
+        ];
+    }, []);
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'В обработке': return '#f39c12';
-            case 'Подтвержден': return '#27ae60';
+            case 'Подтвержден': return '#3498db';
             case 'Отменен': return '#e74c3c';
+            case 'Выдан': return '#2ecc71';
             default: return '#7f8c8d';
         }
     };
 
-    const handleReOrder = async (order: EnhancedOrder) => {
-        if (!order.items || !Array.isArray(order.items)) {
+    const handleReOrder = async (order: CustomerOrderWithItems) => {
+        if (!order.items || !Array.isArray(order.items) || order.items.length === 0) {
             alert('Нет товаров для повторного заказа');
             return;
         }
-
-        // Проверяем наличие всех товаров
-        const unavailableItems = order.items.filter(item => {
-            return !item.stock || item.stock < 1;
-        });
-
-        if (unavailableItems.length > 0) {
-            alert(`Следующие товары недоступны для повторного заказа:\n${unavailableItems.map(i => `- ${i.product_name}`).join('\n')}\n\nДобавлены только доступные товары.`);
-        }
-
-        // Фильтруем только доступные товары
-        const availableItems = order.items.filter(item => item.stock && item.stock >= 1);
-
-        if (availableItems.length === 0) {
-            alert('Нет доступных товаров для повторного заказа');
+        const token = localStorage.getItem('token');
+        if (!token) {
+            alert('Войдите в аккаунт');
             return;
         }
-
-        // Сохраняем в localStorage для корзины
-        const cartItems = availableItems.map(item => ({
-            productId: item.product_id,
-            name: item.product_name,
-            price: item.price,
-            quantity: item.quantity
-        }));
-
-        localStorage.setItem('cart', JSON.stringify(cartItems));
-        
-        // Обновляем корзину через событие
-        window.dispatchEvent(new CustomEvent('cartUpdated', { detail: cartItems }));
-        
-        alert(`Добавлено в корзину: ${availableItems.length} товаров из ${order.items.length}`);
-        
-        // Перенаправляем в корзину
-        window.location.href = '/cart';
+        try {
+            const response = await fetch(API_URLS.PRODUCTS.BATCH, {
+                method: 'POST',
+                headers: {
+                    ...getAuthHeaders(),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    productIds: order.items
+                        .map((i) => i.product_id)
+                        .filter((id, index, ids) => ids.indexOf(id) === index)
+                })
+            });
+            if (!response.ok) throw new Error('batch');
+            const products: Product[] = await response.json();
+            const byId = new Map(products.map((p) => [p.id, p]));
+            const skipped: string[] = [];
+            const cartItems: { productId: number; name: string; price: number; quantity: number }[] = [];
+            for (const item of order.items) {
+                const p = byId.get(item.product_id);
+                if (!p || p.stock <= 0) {
+                    skipped.push(item.product_name);
+                    continue;
+                }
+                const qty = Math.min(item.quantity, p.stock);
+                const price =
+                    p.has_discount && p.final_price != null ? p.final_price : p.price;
+                cartItems.push({
+                    productId: p.id,
+                    name: p.name,
+                    price: typeof price === 'number' ? price : Number(price),
+                    quantity: qty
+                });
+            }
+            if (cartItems.length === 0) {
+                alert(
+                    skipped.length
+                        ? `Нет в наличии или снято с продажи: ${skipped.join(', ')}`
+                        : 'Не удалось добавить товары'
+                );
+                return;
+            }
+            const server = await fetchServerCart(token);
+            const merged = mergeCarts(server, cartItems);
+            const saved = await persistLoggedInCart(token, merged);
+            window.dispatchEvent(new CustomEvent('cartUpdated', { detail: saved }));
+            if (skipped.length > 0) {
+                alert(`Часть товаров недоступна: ${skipped.join(', ')}. Остальное добавлено в корзину.`);
+            } else {
+                alert(`Добавлено позиций: ${cartItems.length}`);
+            }
+            navigate('/cart');
+        } catch {
+            alert('Не удалось проверить наличие товаров');
+        }
     };
 
     const handleProductClick = async (productId: number) => {
@@ -198,76 +214,30 @@ const OrdersPage = () => {
                 headers: getAuthHeaders()
             });
 
-            if (!response.ok) {
-                throw new Error('Ошибка загрузки товара');
-            }
+            if (!response.ok) throw new Error('Ошибка загрузки товара');
 
             const product = await response.json();
             setSelectedProduct(product);
             setModalOpen(true);
         } catch (err) {
-            console.error('Ошибка загрузки товара:', err);
-            alert('Не удалось загрузить информацию о товаре');
+            console.error('Ошибка:', err);
+            alert('Не удалось загрузить товар');
         }
     };
 
-    const handleAddToCartFromModal = (product: Product) => {
-        const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
-        const existingItem = cartItems.find((item: any) => item.productId === product.id);
-        
-        if (existingItem) {
-            existingItem.quantity += 1;
-        } else {
-            cartItems.push({
-                productId: product.id,
-                name: product.name,
-                price: product.final_price || product.price,
-                quantity: 1
-            });
+    const handleAddToCartFromModal = async (product: Product) => {
+        let cartItems = await mergeCartWithNewProduct(product);
+        const token = localStorage.getItem('token');
+        if (token) {
+            try {
+                cartItems = await persistLoggedInCart(token, cartItems);
+            } catch {
+                /* оставить локальный merge; синк сработает из App.tsx */
+            }
         }
-        
-        localStorage.setItem('cart', JSON.stringify(cartItems));
         window.dispatchEvent(new CustomEvent('cartUpdated', { detail: cartItems }));
         alert(`${product.name} добавлен в корзину`);
         setModalOpen(false);
-    };
-
-    const handleQuickAddToCart = async (item: OrderItem) => {
-        // Проверяем актуальный остаток перед добавлением
-        try {
-            const productResponse = await fetch(API_URLS.PRODUCTS.BY_ID(item.product_id), {
-                headers: getAuthHeaders()
-            });
-            
-            if (productResponse.ok) {
-                const product = await productResponse.json();
-                if (product.stock < 1) {
-                    alert(`Товар "${item.product_name}" временно отсутствует на складе`);
-                    return;
-                }
-            }
-            
-            const cartItems = JSON.parse(localStorage.getItem('cart') || '[]');
-            const existingItem = cartItems.find((i: any) => i.productId === item.product_id);
-            
-            if (existingItem) {
-                existingItem.quantity += 1;
-            } else {
-                cartItems.push({
-                    productId: item.product_id,
-                    name: item.product_name,
-                    price: item.price,
-                    quantity: 1
-                });
-            }
-            
-            localStorage.setItem('cart', JSON.stringify(cartItems));
-            window.dispatchEvent(new CustomEvent('cartUpdated', { detail: cartItems }));
-            alert(`${item.product_name} добавлен в корзину`);
-        } catch (err) {
-            console.error('Ошибка добавления в корзину:', err);
-            alert('Не удалось добавить товар в корзину');
-        }
     };
 
     const clearFilters = () => {
@@ -319,8 +289,7 @@ const OrdersPage = () => {
         <div className="orders-page">
             <div className="page">
                 <h1>Мои заказы</h1>
-                
-                {/* Фильтры */}
+
                 <div className="orders-filters">
                     <div className="filters-row">
                         <div className="filter-group">
@@ -334,6 +303,7 @@ const OrdersPage = () => {
                                 <option value="В обработке">В обработке</option>
                                 <option value="Подтвержден">Подтвержден</option>
                                 <option value="Отменен">Отменен</option>
+                                <option value="Выдан">Выдан</option>
                             </select>
                         </div>
 
@@ -412,7 +382,7 @@ const OrdersPage = () => {
                                             className="reorder-btn"
                                             title="Повторить заказ"
                                         >
-                                            🔄 Повторить заказ
+                                            🔄 Повторить
                                         </button>
                                     )}
                                 </div>
@@ -424,15 +394,17 @@ const OrdersPage = () => {
                                     <div className="table-wrapper">
                                         <table className="order-items-table">
                                             <thead>
+                                                <tr>
                                                     <th>Товар</th>
-                                                    <th>Количество</th>
+                                                    <th>Кол-во</th>
                                                     <th>Цена</th>
                                                     <th>Сумма</th>
                                                     <th>Действия</th>
-                                                </thead>
+                                                </tr>
+                                            </thead>
                                             <tbody>
                                                 {order.items.map((item, index) => (
-                                                    <tr key={index} className={(!item.stock || item.stock < 1) ? 'out-of-stock-row' : ''}>
+                                                    <tr key={index}>
                                                         <td data-label="Товар">
                                                             <button 
                                                                 className="product-name-link"
@@ -440,22 +412,51 @@ const OrdersPage = () => {
                                                             >
                                                                 {item.product_name}
                                                             </button>
-                                                            {(!item.stock || item.stock < 1) && (
-                                                                <span className="unavailable-badge">нет в наличии</span>
-                                                            )}
                                                         </td>
-                                                        <td data-label="Количество">{item.quantity} шт.</td>
+                                                        <td data-label="Кол-во">{item.quantity} шт.</td>
                                                         <td data-label="Цена">{item.price.toLocaleString()} ₽</td>
                                                         <td data-label="Сумма">{item.total.toLocaleString()} ₽</td>
                                                         <td data-label="Действия">
-                                                            {item.stock && item.stock > 0 && (
-                                                                <button 
-                                                                    onClick={() => handleQuickAddToCart(item)}
-                                                                    className="quick-add-btn"
-                                                                >
-                                                                    🛒 В корзину
-                                                                </button>
-                                                            )}
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    void (async () => {
+                                                                        try {
+                                                                            const r = await fetch(
+                                                                                API_URLS.PRODUCTS.BY_ID(item.product_id),
+                                                                                { headers: getAuthHeaders() }
+                                                                            );
+                                                                            if (!r.ok) throw new Error();
+                                                                            const p: Product = await r.json();
+                                                                            if (typeof p.stock === 'number' && p.stock <= 0) {
+                                                                                alert('Товар закончился');
+                                                                                return;
+                                                                            }
+                                                                            let cartItems = await mergeCartWithNewProduct(p);
+                                                                            const tk = localStorage.getItem('token');
+                                                                            if (tk) {
+                                                                                try {
+                                                                                    cartItems = await persistLoggedInCart(tk, cartItems);
+                                                                                } catch {
+                                                                                    /* см. модалку */
+                                                                                }
+                                                                            }
+                                                                            window.dispatchEvent(
+                                                                                new CustomEvent('cartUpdated', {
+                                                                                    detail: cartItems
+                                                                                })
+                                                                            );
+                                                                            alert(`${item.product_name} добавлен в корзину`);
+                                                                            navigate('/cart');
+                                                                        } catch {
+                                                                            alert('Не удалось загрузить товар');
+                                                                        }
+                                                                    })();
+                                                                }}
+                                                                className="quick-add-btn"
+                                                            >
+                                                                🛒 В корзину
+                                                            </button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -487,7 +488,6 @@ const OrdersPage = () => {
                 )}
             </div>
 
-            {/* Модальное окно с товаром */}
             <ProductModal
                 product={selectedProduct}
                 isOpen={modalOpen}

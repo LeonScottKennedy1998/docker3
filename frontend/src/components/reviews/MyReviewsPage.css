@@ -1,0 +1,525 @@
+.my-reviews-page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.my-reviews-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.my-reviews-page .page-header h1 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.my-reviews-page .back-to-catalog {
+    color: #3498db;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.my-reviews-page .back-to-catalog:hover {
+    text-decoration: underline;
+}
+
+.my-reviews-page .reviews-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.25rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.my-reviews-page .tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.85rem 1.5rem;
+    font-size: 1rem;
+    color: #7f8c8d;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    transition: all 0.2s ease;
+    margin-bottom: -2px;
+    font-weight: 500;
+}
+
+.my-reviews-page .tab-btn:hover {
+    color: #2c3e50;
+    background: #f8f9fa;
+}
+
+.my-reviews-page .tab-btn.active {
+    color: #3498db;
+    border-bottom-color: #3498db;
+    font-weight: 600;
+}
+
+.my-reviews-page .tab-count {
+    background: #ecf0f1;
+    color: #7f8c8d;
+    border-radius: 999px;
+    padding: 0.1rem 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+}
+
+.my-reviews-page .tab-btn.active .tab-count {
+    background: #3498db;
+    color: #fff;
+}
+
+.my-reviews-page .reviews-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    background: #f8f9fa;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+}
+
+.my-reviews-page .filter-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.my-reviews-page .filter-field label {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    font-weight: 500;
+}
+
+.my-reviews-page .filter-field select,
+.my-reviews-page .filter-field input[type="date"] {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid #d5dbdf;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 0.9rem;
+    color: #2c3e50;
+    min-width: 160px;
+}
+
+.my-reviews-page .filter-field select:focus,
+.my-reviews-page .filter-field input[type="date"]:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+.my-reviews-page .filter-reset-btn {
+    background: #fff;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    height: fit-content;
+}
+
+.my-reviews-page .filter-reset-btn:hover {
+    background: #e74c3c;
+    color: #fff;
+}
+
+.my-reviews-page .reviews-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 1.5rem;
+    align-items: start;
+}
+
+.my-reviews-page .review-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: flex-start;
+}
+
+.my-reviews-page .review-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.my-reviews-page .review-card.pending-card {
+    border-left: 4px solid #f39c12;
+}
+
+.my-reviews-page .review-card.reviewed-card {
+    border-left: 4px solid #2ecc71;
+}
+
+.my-reviews-page .review-card.edit-mode {
+    border-left-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.25);
+}
+
+.my-reviews-page .review-card-img {
+    flex: 0 0 112px;
+    width: 112px;
+    height: 112px;
+    min-width: 112px;
+    min-height: 112px;
+    max-width: 112px;
+    max-height: 112px;
+    background: #f4f6f8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    align-self: flex-start;
+}
+
+.my-reviews-page .review-card-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.my-reviews-page .review-card-img.placeholder {
+    font-size: 2.5rem;
+    color: #bdc3c7;
+}
+
+.my-reviews-page .review-card-info {
+    flex: 1;
+    padding: 1.1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.my-reviews-page .review-card-info h3 {
+    margin: 0 0 0.4rem 0;
+    font-size: 1.05rem;
+    color: #2c3e50;
+    line-height: 1.3;
+    word-break: break-word;
+}
+
+.my-reviews-page .product-name-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.my-reviews-page .product-name-link:hover {
+    color: #3498db;
+}
+
+.my-reviews-page .pending-badge {
+    display: inline-block;
+    background: #fff3cd;
+    color: #b8860b;
+    border: 1px solid #f5d070;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    margin-bottom: 0.5rem;
+    width: fit-content;
+    letter-spacing: 0.02em;
+}
+
+.my-reviews-page .product-category {
+    color: #7f8c8d;
+    font-size: 0.78rem;
+    margin: 0 0 0.5rem 0;
+    display: inline-block;
+    padding: 0.2rem 0.7rem;
+    background: #f0f0f0;
+    border-radius: 20px;
+    width: fit-content;
+}
+
+.my-reviews-page .product-price {
+    font-size: 1.15rem;
+    font-weight: bold;
+    color: #2ecc71;
+    margin: 0 0 0.5rem 0;
+}
+
+.my-reviews-page .order-date {
+    color: #95a5a6;
+    font-size: 0.78rem;
+    margin: 0 0 0.75rem 0;
+}
+
+.my-reviews-page .my-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+
+.my-reviews-page .rating-value {
+    font-size: 0.85rem;
+    color: #f39c12;
+    font-weight: 500;
+}
+
+.my-reviews-page .review-comment-preview {
+    color: #555;
+    font-size: 0.88rem;
+    margin: 0.5rem 0;
+    line-height: 1.4;
+    padding: 0.6rem 0.7rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    word-break: break-word;
+}
+
+.my-reviews-page .review-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.my-reviews-page .review-form {
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #eee;
+}
+
+.my-reviews-page .rating-section,
+.my-reviews-page .comment-section {
+    margin-bottom: 0.75rem;
+}
+
+.my-reviews-page .rating-section label,
+.my-reviews-page .comment-section label {
+    font-size: 0.85rem;
+    display: block;
+    margin-bottom: 0.3rem;
+    color: #2c3e50;
+    font-weight: 500;
+}
+
+.my-reviews-page .comment-section textarea {
+    width: 100%;
+    padding: 0.55rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    resize: vertical;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
+.my-reviews-page .comment-section textarea:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.15);
+}
+
+.my-reviews-page .form-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.my-reviews-page .submit-btn {
+    flex: 2;
+    background: #2ecc71;
+    color: white;
+    border: none;
+    padding: 0.55rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    font-weight: 500;
+}
+
+.my-reviews-page .submit-btn:hover:not(:disabled) {
+    background: #27ae60;
+    transform: translateY(-1px);
+}
+
+.my-reviews-page .submit-btn:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+}
+
+.my-reviews-page .write-review-btn {
+    width: 100%;
+    background: #f39c12;
+    color: white;
+    border: none;
+    padding: 0.65rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-top: 0.35rem;
+}
+
+.my-reviews-page .write-review-btn:hover {
+    background: #e67e22;
+    transform: translateY(-1px);
+}
+
+.my-reviews-page .edit-btn {
+    flex: 1;
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.my-reviews-page .edit-btn:hover {
+    background: #2980b9;
+}
+
+.my-reviews-page .delete-btn {
+    flex: 1;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.my-reviews-page .delete-btn:hover {
+    background: #c0392b;
+}
+
+.my-reviews-page .cancel-btn {
+    flex: 1;
+    background: #95a5a6;
+    color: white;
+    border: none;
+    padding: 0.55rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.my-reviews-page .cancel-btn:hover:not(:disabled) {
+    background: #7f8c8d;
+}
+
+.my-reviews-page .cancel-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.my-reviews-page .empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    background: white;
+    border-radius: 16px;
+    margin-top: 1rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.my-reviews-page .empty-state p {
+    color: #7f8c8d;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+}
+
+.my-reviews-page .empty-state .small-note {
+    font-size: 0.85rem;
+    color: #95a5a6;
+    margin-bottom: 1.5rem;
+}
+
+.my-reviews-page .cta-button {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.65rem 1.5rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+}
+
+.my-reviews-page .cta-button:hover {
+    background: #2980b9;
+    transform: translateY(-1px);
+}
+
+.my-reviews-page .loading {
+    text-align: center;
+    padding: 3rem;
+    color: #7f8c8d;
+    font-size: 1rem;
+}
+
+@media (max-width: 768px) {
+    .my-reviews-page .reviews-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .my-reviews-page .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .my-reviews-page .review-card {
+        flex-direction: column;
+    }
+
+    .my-reviews-page .review-card-img {
+        flex: 0 0 auto;
+        width: 100%;
+        max-width: none;
+        height: 140px;
+        min-height: 140px;
+        max-height: 140px;
+    }
+
+    .my-reviews-page .reviews-filter {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .my-reviews-page .filter-field {
+        width: 100%;
+    }
+
+    .my-reviews-page .filter-field select,
+    .my-reviews-page .filter-field input[type="date"] {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .my-reviews-page .tab-btn {
+        flex: 1;
+        padding: 0.75rem 0.6rem;
+        font-size: 0.9rem;
+        justify-content: center;
+    }
+}

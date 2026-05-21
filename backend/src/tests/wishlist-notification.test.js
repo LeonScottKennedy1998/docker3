@@ -1,4 +1,6 @@
-const WishlistNotificationService = require('../services/wishlistNotificationService');
+const {
+    WishlistNotificationService,
+} = require('../services/wishlistNotificationService');
 const nodemailer = require('nodemailer');
 const pool = require('../config/database');
 

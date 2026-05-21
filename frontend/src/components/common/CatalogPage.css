@@ -4,19 +4,23 @@
     padding: 20px;
 }
 
-.page-subtitle {
-    color: #7f8c8d;
+.catalog-page h1 {
+    color: var(--app-heading, #2c3e50);
+}
+
+.catalog-page .page-subtitle {
+    color: var(--page-muted, #7f8c8d);
     margin-bottom: 2rem;
     text-align: center;
     font-size: 1.1rem;
 }
 
 .catalog-controls {
-    background: white;
+    background: var(--card-bg, white);
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 2rem;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px var(--shadow, rgba(0, 0, 0, 0.1));
 }
 
 .filters {
@@ -35,7 +39,7 @@
 .filter-group h3 {
     margin-top: 0;
     margin-bottom: 1rem;
-    color: #2c3e50;
+    color: var(--app-heading, #2c3e50);
     font-size: 1.2rem;
 }
 
@@ -47,13 +51,13 @@
 
 .category-btn {
     padding: 0.5rem 1rem;
-    border: 2px solid #e0e0e0;
-    background: white;
+    border: 2px solid var(--card-border, #e0e0e0);
+    background: var(--card-bg, white);
     border-radius: 6px;
     cursor: pointer;
     font-weight: 500;
     transition: all 0.3s;
-    color: #5a6268;
+    color: var(--app-text, #5a6268);
 }
 
 .category-btn:hover {
@@ -70,11 +74,11 @@
 .sort-select {
     width: 100%;
     padding: 0.75rem;
-    border: 2px solid #e0e0e0;
+    border: 2px solid var(--card-border, #e0e0e0);
     border-radius: 6px;
-    background: white;
+    background: var(--card-bg, white);
     font-size: 1rem;
-    color: #2c3e50;
+    color: var(--app-heading, #2c3e50);
     cursor: pointer;
 }
 
@@ -89,8 +93,8 @@
     justify-content: space-between;
     align-items: center;
     padding-top: 1rem;
-    border-top: 1px solid #eaeaea;
-    color: #5a6268;
+    border-top: 1px solid var(--card-border, #eaeaea);
+    color: var(--app-text, #5a6268);
 }
 
 .clear-filters-btn {
@@ -312,4 +316,27 @@
     .products-grid {
         grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     }
+}
+
+.catalog-page-hint {
+    color: var(--page-muted, #7f8c8d);
+    font-size: 0.9rem;
+}
+
+.catalog-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    margin: 2rem 0 1rem;
+}
+
+.catalog-page-indicator {
+    font-size: 0.95rem;
+    color: var(--app-text, #333);
+}
+
+.catalog-page-btn {
+    min-width: 120px;
 }

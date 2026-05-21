@@ -5,6 +5,9 @@ export interface Product {
     price: number;
     stock: number;
     image_url?: string;
+    images?: string[];
+    extra_info?: Record<string, string>;
+    category_id?: number;
     category: string;
     created_at: string;
     is_active: boolean;
@@ -14,6 +17,8 @@ export interface Product {
     original_price?: number;
     discount_end_date?: string;
     rule_id?: number;
+    reviews_count?: number;
+    avg_rating?: number;
 }
 
 export interface DiscountRule {
@@ -37,6 +42,7 @@ export interface CartItem {
     name: string;
     price: number;
     quantity: number;
+    stock?: number;
 }
 
 export interface Order {

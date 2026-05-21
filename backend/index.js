@@ -1,16 +1,10 @@
 require('dotenv').config();
-require('dotenv').config();
-console.log('📂 Текущая папка:', __dirname);
-console.log('🔑 ENCRYPTION_KEY:', process.env.ENCRYPTION_KEY);
-console.log('🔑 NODE_ENV:', process.env.NODE_ENV);
-console.log('🔑 DB_URL:', process.env.DB_URL ? 'есть' : 'нет');
 const express = require('express');
 const cors = require('cors');
 const pool = require('./src/config/database');
 const sqlInjectionCheck = require('./src/middleware/sqlInjectionCheck');
 const { setupCronJobs } = require('./src/cron/notificationCron');
 const { performanceMiddleware, PerformanceMonitor } = require('./src/middleware/performanceMonitor');
-
 
 const authRoutes = require('./src/routes/AuthRoutes');
 const productRoutes = require('./src/routes/ProductRoutes');
@@ -24,21 +18,35 @@ const discountRoutes = require('./src/routes/DiscountRoutes');
 const purchaseRoutes = require('./src/routes/PurchaseRoutes');
 const performanceRoutes = require('./src/routes/PerformanceRoutes');
 const categoryRoutes = require('./src/routes/CategoryRoutes');
-
+const reviewRoutes = require('./src/routes/ReviewRoutes');
+const cartRoutes = require('./src/routes/CartRoutes');
 
 const app = express();
 const port = process.env.PORT || 5001;
-const HOST = '0.0.0.0';
+const HOST = process.env.BIND_HOST || '0.0.0.0';
 app.set('trust proxy', 1);
 
+function isAllowedCorsOrigin(origin) {
+    if (!origin) return true;
+    const extra = (process.env.CORS_ORIGINS || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    if (extra.includes(origin)) return true;
+    if (/^https?:\/\/(localhost|127\.0\.0\.1)(?::\d+)?$/i.test(origin)) return true;
+    if (/^https?:\/\/192\.168\.\d{1,3}\.\d{1,3}(?::\d+)?$/i.test(origin)) return true;
+    return (
+        origin === 'https://pp-ten-pink.vercel.app' ||
+        origin === 'https://pp-vv34.vercel.app'
+    );
+}
+
 const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'https://pp-ten-pink.vercel.app',
-    'https://pp-vv34.vercel.app'
-  ],
-  credentials: true,
-  optionsSuccessStatus: 200
+    origin(origin, callback) {
+        callback(null, isAllowedCorsOrigin(origin));
+    },
+    credentials: true,
+    optionsSuccessStatus: 200,
 };
 
 app.use(cors(corsOptions));
@@ -51,21 +59,19 @@ app.use(performanceMiddleware);
 async function checkDatabase() {
     try {
         const result = await pool.query('SELECT NOW()');
-        console.log('✅ Подключение к БД успешно:', result.rows[0].now);
-        
+        console.log('DB OK', result.rows[0].now);
         const tables = await pool.query(`
-            SELECT table_name 
-            FROM information_schema.tables 
+            SELECT table_name
+            FROM information_schema.tables
             WHERE table_schema = 'public'
             ORDER BY table_name
-            `);
-            console.log('📊 Таблицы в БД:', tables.rows.map(t => t.table_name));
-            
-        } catch (error) {
-            console.error('❌ Ошибка подключения к БД:', error.message);
-        }
+        `);
+        console.log('Tables:', tables.rows.map((t) => t.table_name).join(', '));
+    } catch (error) {
+        console.error('DB error:', error.message);
     }
-    
+}
+
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
@@ -78,27 +84,25 @@ app.use('/api/discounts', discountRoutes);
 app.use('/api/procurement', purchaseRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/products/categories', categoryRoutes);
-
-
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/cart', cartRoutes);
 
 const startPerformanceMonitoring = () => {
     const monitor = new PerformanceMonitor();
-    
     setInterval(() => {
         monitor.saveMemoryUsage().catch(console.error);
     }, 5 * 60 * 1000);
-    
-    console.log('✅ Мониторинг производительности запущен');
+    console.log('Performance monitor interval started');
 };
 
-
 app.listen(port, HOST, () => {
-    console.log(`🚀 Сервер запущен на ${HOST}:${port}`);
-    
-    checkDatabase().then(() => {
-        setupCronJobs();
-        startPerformanceMonitoring();
-    }).catch(error => {
-        console.error('❌ Не удалось запустить крон-задачи:', error);
-    });
+    console.log(`Server ${HOST}:${port}`);
+    checkDatabase()
+        .then(() => {
+            setupCronJobs();
+            startPerformanceMonitoring();
+        })
+        .catch((error) => {
+            console.error('Startup error:', error);
+        });
 });

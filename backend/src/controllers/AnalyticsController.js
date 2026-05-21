@@ -1,6 +1,92 @@
 const pool = require('../config/database');
-const { Parser } = require('json2csv');
 const encryption = require('../utils/encryption');
+
+function escapeCsv(value) {
+    if (value === null || value === undefined) return '';
+
+    const text = String(value).replace(/"/g, '""');
+    return `"${text}"`;
+}
+
+function formatDate(value) {
+    if (!value) return '';
+    return new Date(value).toLocaleDateString('ru-RU');
+}
+
+function formatDateTime(value) {
+    if (!value) return '';
+    return new Date(value).toLocaleString('ru-RU');
+}
+
+function formatMoney(value) {
+    return Number(value || 0).toLocaleString('ru-RU', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function toCsvRow(values) {
+    return values.map(escapeCsv).join(';');
+}
+
+function buildSalesReportCsv(report, flatOrders) {
+    const generatedAt = new Date();
+    const totalQuantity = flatOrders.reduce((sum, order) => sum + Number(order.quantity || 0), 0);
+    const totalItemsAmount = flatOrders.reduce((sum, order) => sum + Number(order.item_total || 0), 0);
+    const lines = [
+        toCsvRow(['Отчет по продажам']),
+        toCsvRow(['Период', `с ${formatDate(report.period.startDate)} по ${formatDate(report.period.endDate)}`]),
+        toCsvRow(['Дата формирования', formatDateTime(generatedAt)]),
+        '',
+        toCsvRow(['Итого за период']),
+        toCsvRow(['Всего заказов', report.summary.totalOrders]),
+        toCsvRow(['Общая выручка, руб.', formatMoney(totalItemsAmount)]),
+        toCsvRow(['Средний чек, руб.', formatMoney(report.summary.avgOrderValue)]),
+        toCsvRow(['Уникальных клиентов', report.summary.uniqueCustomers]),
+        '',
+        toCsvRow([
+            'ID заказа',
+            'Клиент',
+            'Статус',
+            'Телефон',
+            'Дата создания',
+            'Товар',
+            'Количество',
+            'Цена, руб.',
+            'Сумма, руб.'
+        ])
+    ];
+
+    flatOrders.forEach(order => {
+        lines.push(toCsvRow([
+            order.order_id,
+            order.customer_name,
+            order.status,
+            order.phone,
+            formatDateTime(order.created_at),
+            order.product_name,
+            order.quantity,
+            formatMoney(order.price),
+            formatMoney(order.item_total)
+        ]));
+    });
+
+    lines.push(toCsvRow(['Итого', '', '', '', '', '', totalQuantity, '', formatMoney(totalItemsAmount)]));
+    lines.push('');
+    lines.push(toCsvRow(['Распределение по статусам']));
+    lines.push(toCsvRow(['Статус', 'Количество', 'Выручка, руб.', 'Доля']));
+
+    report.statusStats.forEach(stat => {
+        lines.push(toCsvRow([
+            stat.status,
+            stat.count,
+            formatMoney(stat.revenue),
+            `${stat.percentage}%`
+        ]));
+    });
+
+    return lines.join('\r\n');
+}
 
 class AnalyticsController {
 async getDashboardStats(req, res) {
@@ -115,7 +201,6 @@ async getDashboardStats(req, res) {
                 FROM preorders p
                 JOIN users u ON p.user_id = u.user_id
                 WHERE p.created_at BETWEEN $1 AND $2 
-                AND p.status_id != 3
                 AND u.is_active = true
             `, [startDate, endDate]);
 
@@ -158,15 +243,51 @@ async getDashboardStats(req, res) {
             };
         });
 
+        const flatOrders = [];
+
+        ordersWithDecryptedNames.forEach(order => {
+            const { first_name, last_name, user_id, items, ...orderData } = order;
+
+            if (items && Array.isArray(items)) {
+                items.forEach(item => {
+                    flatOrders.push({
+                        order_id: orderData.order_id,
+                        customer_name: orderData.customer_name,
+                        status: orderData.status,
+                        phone: orderData.phone,
+                        created_at: orderData.created_at,
+                        product_name: item.product_name,
+                        quantity: item.quantity,
+                        price: item.price,
+                        item_total: item.total
+                    });
+                });
+            } else {
+                flatOrders.push({
+                    order_id: orderData.order_id,
+                    customer_name: orderData.customer_name,
+                    status: orderData.status,
+                    phone: orderData.phone,
+                    created_at: orderData.created_at,
+                    product_name: 'Нет данных',
+                    quantity: 0,
+                    price: 0,
+                    item_total: 0
+                });
+            }
+        });
+
+        const totalRevenue = flatOrders.reduce((sum, order) => sum + Number(order.item_total || 0), 0);
+        const totalOrders = parseInt(summaryQuery.rows[0].total_orders || 0);
         const report = {
             period: {
                 startDate,
                 endDate
             },
             summary: {
-                totalOrders: parseInt(summaryQuery.rows[0].total_orders || 0),
-                totalRevenue: parseFloat(summaryQuery.rows[0].total_revenue || 0),
-                avgOrderValue: parseFloat(summaryQuery.rows[0].avg_order_value || 0),
+                totalOrders,
+                totalRevenue,
+                avgOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
                 uniqueCustomers: parseInt(summaryQuery.rows[0].unique_customers || 0)
             },
             statusStats: statusStatsQuery.rows,
@@ -177,62 +298,12 @@ async getDashboardStats(req, res) {
         };
 
         if (format === 'csv') {
-            const flatOrders = [];
-            
-            ordersWithDecryptedNames.forEach(order => {
-                const { first_name, last_name, user_id, items, ...orderData } = order;
-                
-                if (items && Array.isArray(items)) {
-                    items.forEach(item => {
-                        flatOrders.push({
-                            order_id: orderData.order_id,
-                            customer_name: orderData.customer_name,
-                            status: orderData.status,
-                            phone: orderData.phone,
-                            created_at: orderData.created_at,
-                            product_name: item.product_name,
-                            quantity: item.quantity,
-                            price: item.price,
-                            item_total: item.total
-                        });
-                    });
-                } else {
-                    flatOrders.push({
-                        order_id: orderData.order_id,
-                        customer_name: orderData.customer_name,
-                        status: orderData.status,
-                        phone: orderData.phone,
-                        created_at: orderData.created_at,
-                        product_name: 'Нет данных',
-                        quantity: 0,
-                        price: 0,
-                        item_total: 0
-                    });
-                }
-            });
-
-            const fields = [
-                { label: 'ID заказа', value: 'order_id' },
-                { label: 'Клиент', value: 'customer_name' },
-                { label: 'Статус', value: 'status' },
-                { label: 'Телефон', value: 'phone' },
-                { label: 'Дата создания', value: 'created_at' },
-                { label: 'Товар', value: 'product_name' },
-                { label: 'Количество', value: 'quantity' },
-                { label: 'Цена', value: 'price' },
-                { label: 'Сумма', value: 'item_total' }
-            ];
-
-            const json2csvParser = new Parser({ 
-                fields,
-                withBOM: true,
-                delimiter: ';'
-            });
-            
-            const csv = json2csvParser.parse(flatOrders);
+            const csv = buildSalesReportCsv(report, flatOrders);
+            const filenameStart = String(startDate).slice(0, 10);
+            const filenameEnd = String(endDate).slice(0, 10);
 
             res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-            res.setHeader('Content-Disposition', `attachment; filename="report_${startDate}_to_${endDate}.csv"`);
+            res.setHeader('Content-Disposition', `attachment; filename="sales_report_${filenameStart}_to_${filenameEnd}.csv"`);
             res.send('\ufeff' + csv);
         } else {
             res.json(report);

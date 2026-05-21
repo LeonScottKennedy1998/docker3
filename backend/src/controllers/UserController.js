@@ -3,6 +3,18 @@ const bcrypt = require('bcryptjs');
 const encryption = require('../utils/encryption');
 
 class UserController {
+    async getRoles(req, res) {
+        try {
+            const result = await pool.query(
+                'SELECT role_id as id, role_name as name FROM roles ORDER BY role_id'
+            );
+            res.json(result.rows);
+        } catch (error) {
+            console.error('Ошибка получения ролей:', error);
+            res.status(500).json({ error: 'Ошибка получения ролей' });
+        }
+    }
+
    async getAllUsers(req, res) {
         try {
             const result = await pool.query(`
@@ -121,8 +133,8 @@ class UserController {
     async updateUser(req, res) {
         try {
             const { id } = req.params;
-            const { first_name, last_name, patronymic, phone, role, is_active } = req.body;
-            
+            const { role, is_active } = req.body;
+
             const currentUser = await pool.query(
                 `SELECT u.*, r.role_name 
                  FROM users u 
@@ -136,9 +148,15 @@ class UserController {
             }
             
             const oldData = currentUser.rows[0];
+
+            if (role === undefined && is_active === undefined) {
+                return res.status(400).json({
+                    error: 'Укажите роль и/или признак активности аккаунта'
+                });
+            }
             
             let role_id = oldData.role_id;
-            if (role) {
+            if (role !== undefined) {
                 const roleResult = await pool.query(
                     'SELECT role_id FROM roles WHERE role_name = $1',
                     [role]
@@ -151,46 +169,13 @@ class UserController {
                 role_id = roleResult.rows[0].role_id;
             }
             
-            let updateData = {
-                phone: phone || oldData.phone,
-                role_id: role_id,
-                is_active: is_active !== undefined ? is_active : oldData.is_active
-            };
-            
-            if (first_name) {
-                updateData.first_name = encryption.encryptForDB(first_name);
-            }
-            if (last_name) {
-                updateData.last_name = encryption.encryptForDB(last_name);
-            }
-            if (patronymic !== undefined) {
-                updateData.patronymic = patronymic ? encryption.encryptForDB(patronymic) : null;
-            }
-            
-            const setClauses = [];
-            const values = [];
-            let paramCount = 1;
-            
-            Object.entries(updateData).forEach(([key, value]) => {
-                if (value !== undefined) {
-                    setClauses.push(`${key} = $${paramCount}`);
-                    values.push(value);
-                    paramCount++;
-                }
-            });
-            
-            if (setClauses.length === 0) {
-                return res.status(400).json({ error: 'Нет данных для обновления' });
-            }
-            
-            values.push(id);
-            
-            const result = await pool.query(
+            const nextActive = is_active !== undefined ? is_active : oldData.is_active;
+
+            await pool.query(
                 `UPDATE users 
-                 SET ${setClauses.join(', ')}
-                 WHERE user_id = $${paramCount}
-                 RETURNING user_id, email, phone, is_active, created_at`,
-                values
+                 SET role_id = $1, is_active = $2
+                 WHERE user_id = $3`,
+                [role_id, nextActive, id]
             );
             
             const updatedUserResult = await pool.query(

@@ -1,22 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './ProcurementDashboard.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface Supplier {
-    supplier_id: number;
-    name: string;
-    contact_person: string;
-    email: string;
-    phone: string;
-    rating: number;
-    is_active: boolean;
-    created_at: string;
-    completed_orders?: number;
-    cancelled_orders?: number;
-    total_revenue?: number;
-    avg_order_amount?: number;
-    last_order_date?: string;
-}
+import type { Supplier } from '../../types/procurement';
 
 const SupplierManagement = () => {
     const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -268,26 +253,19 @@ const SupplierManagement = () => {
                                 </div>
                             </div>
                             
-                            <div className="form-group">
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <input
-                                        type="checkbox"
-                                        name="is_active"
-                                        checked={formData.is_active}
-                                        onChange={handleFormChange}
-                                    />
-                                    Активный поставщик
-                                </label>
+                            <div className="checkbox-field">
+                                <input
+                                    type="checkbox"
+                                    id="supplier_is_active"
+                                    name="is_active"
+                                    checked={formData.is_active}
+                                    onChange={handleFormChange}
+                                />
+                                <label htmlFor="supplier_is_active">Активный поставщик</label>
                             </div>
                             
                             {editingSupplier && (
-                                <div className="info-message" style={{ 
-                                    background: '#e8f4fd', 
-                                    padding: '10px', 
-                                    borderRadius: '4px',
-                                    marginBottom: '15px',
-                                    fontSize: '0.9rem'
-                                }}>
+                                <div className="info-message supplier-rating-hint">
                                     <small>
                                         ⭐ Текущий рейтинг: {editingSupplier.rating}/5 (автоматически рассчитывается на основе выполненных заказов)
                                     </small>

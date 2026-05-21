@@ -1,17 +1,39 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { getMobileBuildPageUrl } from '../../config/mobile';
+import type { HomePageProps } from '../../types/props';
 import './HomePage.css';
 
-interface HomePageProps {
-    user: any;
-    onLogout: () => void;
-}
-
 const HomePage: React.FC<HomePageProps> = ({ user, onLogout }) => {
+    const showMobileAppPromo = !user || user.role === 'Клиент';
+    const mobileBuildPageUrl = getMobileBuildPageUrl();
+
     return (
         <div className="page">
             <h1>Добро пожаловать в магазин мерча!</h1>
-            
+
+            {showMobileAppPromo && (
+                <section className="mobile-app-promo" aria-label="Мобильное приложение">
+                    <div className="mobile-app-promo__inner">
+                        <div className="mobile-app-promo__text">
+                            <h2 className="mobile-app-promo__title">Скачайте мобильное приложение</h2>
+                            <p className="mobile-app-promo__desc">
+                                Установите приложение на Android: откроется страница сборки Expo, там можно скачать
+                                установочный файл.
+                            </p>
+                        </div>
+                        <a
+                            href={mobileBuildPageUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mobile-app-promo__btn"
+                        >
+                            Скачать
+                        </a>
+                    </div>
+                </section>
+            )}
+
             {user ? (
                 <div className="user-welcome">
                     <div className="user-card">

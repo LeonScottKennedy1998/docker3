@@ -2,21 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Product } from '../../types/product';
 import './ProductCard.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface ProductCardProps {
-    product: Product;
-    showWishlistButton?: boolean;
-    showAddToCartButton?: boolean;
-    showCategory?: boolean;
-    showDescription?: boolean;
-    onAddToCart?: (product: Product) => void;
-    onViewDetails?: (product: Product) => void;
-    onToggleWishlist?: (productId: number, isInWishlist: boolean) => Promise<void>;
-    isInWishlist?: boolean;
-    className?: string;
-    layout?: 'grid' | 'list';
-    showAlert?: boolean;
-}
+import StarRating from '../reviews/StarRating';
+import { useNavigate } from 'react-router-dom';
+import type { ProductCardProps } from '../../types/props';
 
 const ProductCard: React.FC<ProductCardProps> = ({
     product,
@@ -32,6 +20,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     layout = 'grid',
     showAlert = true
 }) => {
+    const navigate = useNavigate();
     const [internalIsInWishlist, setInternalIsInWishlist] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     
@@ -127,8 +116,23 @@ const ProductCard: React.FC<ProductCardProps> = ({
         }
     };
 
+    const handleViewReviews = () => {
+        navigate(`/product-reviews/${product.id}`);
+    };
+
+    const gallery =
+        product.images && product.images.length > 0
+            ? product.images
+            : product.image_url
+              ? [product.image_url]
+              : [];
+    const coverSrc = gallery[0];
+    const photoCount = gallery.length;
+
     return (
-        <div className={`product-card ${className} ${layout}`}>
+        <div
+            className={`product-card ${className} ${layout} ${product.stock === 0 ? 'product-card--out' : ''}`}
+        >
             {showWishlistButton && (
                 <div className="product-card-header">
                     <button 
@@ -143,23 +147,25 @@ const ProductCard: React.FC<ProductCardProps> = ({
             )}
             
             <div className="product-image" onClick={handleViewDetails}>
-                {product.image_url ? (
-                    <img 
-                        src={product.image_url} 
-                        alt={product.name}
-                        className="product-img"
-                    />
+                {coverSrc ? (
+                    <img src={coverSrc} alt={product.name} className="product-img" />
                 ) : (
-                    <div className="image-placeholder">
-                        {product.name.charAt(0)}
-                    </div>
+                    <div className="image-placeholder">{product.name.charAt(0)}</div>
                 )}
+                {photoCount > 1 && <span className="product-photo-badge">{photoCount} фото</span>}
             </div>
             
             <div className="product-content">
                 <h3 onClick={handleViewDetails} className="product-title">
                     {product.name}
                 </h3>
+                
+                <div className="product-rating-row">
+                    <StarRating rating={product.avg_rating || 0} readonly={true} size="small" />
+                    <span className="reviews-count-link" onClick={handleViewReviews}>
+                        ({product.reviews_count || 0} отзывов)
+                    </span>
+                </div>
                 
                 {showCategory && (
                     <p className="product-category">{product.category}</p>
@@ -197,15 +203,25 @@ const ProductCard: React.FC<ProductCardProps> = ({
                         </span>
                     </div>
                     
-                    {showAddToCartButton && onAddToCart && (
+                    <div className="product-actions">
+                        {showAddToCartButton && onAddToCart && (
+                            <button 
+                                onClick={handleAddToCart}
+                                className="add-to-cart-btn"
+                                disabled={product.stock === 0}
+                            >
+                                🛒 В корзину
+                            </button>
+                        )}
+                        
                         <button 
-                            onClick={handleAddToCart}
-                            className="add-to-cart-btn"
-                            disabled={product.stock === 0}
+                            onClick={handleViewReviews}
+                            className="reviews-btn"
+                            title="Посмотреть отзывы"
                         >
-                            🛒 В корзину
+                            ★ Отзывы
                         </button>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>

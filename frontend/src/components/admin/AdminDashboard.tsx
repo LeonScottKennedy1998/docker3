@@ -5,22 +5,12 @@ import './Admin.css';
 import BackupManagement from './BackupManagement';
 import PerformanceDashboard from './PerformanceDashboard';
 import { API_URLS, getAuthHeaders } from '../../config/api';
-
-interface DashboardStats {
-    totalUsers: number;
-    activeUsers: number;
-    blockedUsers: number;
-    recentLogs: number;
-}
-
-interface AdminDashboardProps {
-    defaultTab?: 'users' | 'audit' | 'backup' | 'performance';
-}
-
+import type { AdminDashboardStats } from '../../types/admin';
+import type { AdminDashboardProps } from '../../types/props';
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ defaultTab = 'users' }) => {
     const [activeTab, setActiveTab] = useState<'users' | 'audit' | 'backup' | 'performance'>('users');
-    const [stats, setStats] = useState<DashboardStats | null>(null);
+    const [stats, setStats] = useState<AdminDashboardStats | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {

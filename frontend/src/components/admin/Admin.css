@@ -392,6 +392,36 @@
     max-height: 90vh;
 }
 
+.admin-page .modal .checkbox-field {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 0.25rem;
+}
+
+.admin-page .modal .checkbox-field input[type="checkbox"] {
+    width: 1.15rem;
+    min-width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.admin-page .modal .checkbox-field label {
+    margin: 0;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 1;
+}
+
 .info-card, .warning-card {
     background: white;
     padding: 1.5rem;
@@ -871,3 +901,21 @@
     }
 }
 
+.admin-user-readonly {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.admin-user-readonly p {
+    margin: 0.35rem 0;
+}
+
+.admin-user-readonly .hint-text {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: #7f8c8d;
+}

@@ -6,8 +6,14 @@ const { authMiddleware, roleMiddleware } = require('../middleware/auth');
 
 router.get('/', productController.getProducts);
 router.get('/categories', productController.getCategories);
+router.get('/admin/all', 
+    authMiddleware, 
+    roleMiddleware('Товаровед'), 
+    productController.getAllProducts
+);
+
+router.post('/batch', productController.getProductsBatch);
 router.get('/:id', productController.getProductById);
-router.get('/categories', productController.getCategories);
 
 router.post('/', 
     authMiddleware, 
@@ -33,11 +39,4 @@ router.patch('/:id/activate',
     productController.activateProduct
 );
 
-router.get('/admin/all', 
-    authMiddleware, 
-    roleMiddleware('Товаровед'), 
-    productController.getAllProducts
-);
-
-router.post('/batch', productController.getProductsBatch);
 module.exports = router;

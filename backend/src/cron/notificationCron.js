@@ -84,12 +84,13 @@ async function checkStockNotifications() {
                  if (sent) {
                     await client.query(
                         `INSERT INTO wishlist_notifications 
-                         (user_id, product_id, notification_type, old_value, new_value, sent_at)
-                         VALUES ($1, $2, 'stock_available', '0', $3, NOW())
-                         ON CONFLICT (user_id, product_id, notification_type) 
-                         DO UPDATE SET sent_at = NOW() 
-                         WHERE wishlist_notifications.sent_at < CURRENT_DATE 
-                           OR wishlist_notifications.sent_at >= CURRENT_DATE + INTERVAL '1 day'`,
+                         (user_id, product_id, notification_type, old_value, new_value, sent_at, sent_date)
+                         VALUES ($1, $2, 'stock_available', '0', $3, NOW(), CURRENT_DATE)
+                         ON CONFLICT (user_id, product_id, notification_type, sent_date)
+                         DO UPDATE SET
+                           sent_at = EXCLUDED.sent_at,
+                           new_value = EXCLUDED.new_value,
+                           old_value = EXCLUDED.old_value`,
                         [item.user_id, item.product_id, item.stock.toString()]
                     );
                     sentCount++;

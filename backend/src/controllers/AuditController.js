@@ -78,19 +78,31 @@ class AuditController {
                 return logObj;
             });
             
-            const countQuery = `
+            let countQuery = `
                 SELECT COUNT(*) as total 
                 FROM audit_log al
                 WHERE 1=1
-                ${action ? ' AND al.audit_action = $1' : ''}
-                ${table_name ? ` AND al.audit_table = $${action ? 2 : 1}` : ''}
             `;
-            
             const countParams = [];
-            if (action) countParams.push(action);
-            if (table_name) countParams.push(table_name);
-            
-            const countResult = await pool.query(countQuery, countParams.length > 0 ? countParams : undefined);
+            let cp = 1;
+            if (action) {
+                countQuery += ` AND al.audit_action = $${cp++}`;
+                countParams.push(action);
+            }
+            if (table_name) {
+                countQuery += ` AND al.audit_table = $${cp++}`;
+                countParams.push(table_name);
+            }
+            if (start_date) {
+                countQuery += ` AND al.created_at >= $${cp++}`;
+                countParams.push(start_date);
+            }
+            if (end_date) {
+                countQuery += ` AND al.created_at <= $${cp++}`;
+                countParams.push(end_date);
+            }
+
+            const countResult = await pool.query(countQuery, countParams);
             
             res.json({
                 logs: logsWithDecryptedNames,

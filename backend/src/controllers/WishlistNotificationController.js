@@ -34,7 +34,7 @@ class WishlistNotificationController {
                 AND EXISTS (
                     SELECT 1 FROM products p2 
                     WHERE p2.product_id = p.product_id 
-                    AND p2.updated_at > NOW() - INTERVAL '24 hours' -- Изменен за последние 24 часа
+                    AND p2.updated_at > NOW() - INTERVAL '24 hours'
                 )
                 ORDER BY w.user_id, w.product_id
             `);
@@ -129,8 +129,8 @@ class WishlistNotificationController {
                 JOIN categories c ON p.category_id = c.category_id
                 JOIN discounts d ON p.product_id = d.product_id
                 WHERE p.is_active = true
-                AND d.created_at > NOW() - INTERVAL '24 hours' -- Скидка создана за последние 24 часа
-                AND (d.end_date IS NULL OR d.end_date > NOW()) -- Активная скидка
+                AND d.created_at > NOW() - INTERVAL '24 hours'
+                AND (d.end_date IS NULL OR d.end_date > NOW())
                 ORDER BY w.user_id, w.product_id
             `);
 

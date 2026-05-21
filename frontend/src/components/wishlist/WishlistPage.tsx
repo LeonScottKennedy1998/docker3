@@ -1,31 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import ProductModal from '../common/ProductModal';
+import { Product } from '../../types/product';
 import './WishlistPage.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
+import type { WishlistPageItem, WishlistPageProps } from '../../types/wishlist';
 
-interface WishlistItem {
-    wishlist_id: number;
-    product_id: number;
-    product_name: string;
-    description: string;
-    price: number;
-    final_price: number;
-    stock: number;
-    image_url: string;
-    category_name: string;
-    added_at: string;
-    has_discount: boolean;
-    discount_percent: number;
-}
-
-interface WishlistPageProps {
-    addToCart: (product: any) => void;
-}
+const wishlistRowToProduct = (item: WishlistPageItem): Product => ({
+    id: item.product_id,
+    name: item.product_name,
+    description: item.description,
+    price: item.price,
+    stock: item.stock,
+    image_url: item.image_url || undefined,
+    category: item.category_name,
+    created_at: '',
+    is_active: true,
+    has_discount: item.has_discount,
+    final_price: item.final_price,
+    discount_percent: item.discount_percent,
+});
 
 const WishlistPage: React.FC<WishlistPageProps> = ({ addToCart }) => {
-    const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+    const [wishlistItems, setWishlistPageItems] = useState<WishlistPageItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+    const [detailOpen, setDetailOpen] = useState(false);
 
     useEffect(() => {
         fetchWishlist();
@@ -70,7 +71,7 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ addToCart }) => {
 
         const data = await response.json();
         console.log('✅ Данные избранного:', data);
-        setWishlistItems(data);
+        setWishlistPageItems(data);
     } catch (err: any) {
         console.error('❌ Ошибка загрузки избранного:', err);
         setError(err.message || 'Ошибка загрузки избранного');
@@ -91,21 +92,27 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ addToCart }) => {
                 throw new Error('Ошибка удаления из избранного');
             }
 
-            setWishlistItems(prev => prev.filter(item => item.product_id !== productId));
+            setWishlistPageItems(prev => prev.filter(item => item.product_id !== productId));
             
         } catch (err: any) {
             alert(err.message);
         }
     };
 
-     const handleAddToCart = (item: WishlistItem) => {
+     const handleAddToCart = (item: WishlistPageItem) => {
+        if (typeof item.stock === 'number' && item.stock <= 0) {
+            alert('Товар закончился');
+            return;
+        }
         const productForCart = {
+            id: item.product_id,
             productId: item.product_id,
             name: item.product_name,
-            price: item.has_discount ? item.final_price : item.price,
+            price: item.has_discount && item.final_price != null ? item.final_price : Number(item.price),
             quantity: 1,
-            originalPrice: item.price,
-            discount: item.has_discount ? item.discount_percent : 0
+            stock: item.stock,
+            has_discount: item.has_discount,
+            final_price: item.final_price
         };
         
         if (addToCart) {
@@ -119,6 +126,48 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ addToCart }) => {
 
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleDateString('ru-RU');
+    };
+
+    const closeDetail = () => {
+        setDetailOpen(false);
+        setDetailProduct(null);
+    };
+
+    const openWishlistDetail = async (item: WishlistPageItem) => {
+        try {
+            const res = await fetch(API_URLS.PRODUCTS.BY_ID(item.product_id), {
+                headers: getAuthHeaders(),
+            });
+            if (res.ok) {
+                const p = (await res.json()) as Product;
+                setDetailProduct(p);
+                setDetailOpen(true);
+                return;
+            }
+        } catch {
+        }
+        setDetailProduct(wishlistRowToProduct(item));
+        setDetailOpen(true);
+    };
+
+    const onProductTileKeyDown = (e: React.KeyboardEvent, item: WishlistPageItem) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            void openWishlistDetail(item);
+        }
+    };
+
+    const handleModalAddToCart = (product: Product) => {
+        addToCart({
+            id: product.id,
+            productId: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: 1,
+            stock: product.stock,
+            has_discount: product.has_discount,
+            final_price: product.final_price,
+        });
     };
 
     if (loading) {
@@ -177,7 +226,13 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ addToCart }) => {
                                     </button>
                                 </div>
                                 
-                                <Link to={`/catalog`} className="wishlist-product-link">
+                                <div
+                                    className="wishlist-product-link"
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={() => void openWishlistDetail(item)}
+                                    onKeyDown={(e) => onProductTileKeyDown(e, item)}
+                                >
                                     <div className="wishlist-product-image">
                                         {item.image_url ? (
                                             <img 
@@ -231,7 +286,7 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ addToCart }) => {
                                             )}
                                         </div>
                                     </div>
-                                </Link>
+                                </div>
                                 
                                 <div className="wishlist-actions">
                                     <button 
@@ -255,6 +310,12 @@ const WishlistPage: React.FC<WishlistPageProps> = ({ addToCart }) => {
                     </div>
                 </div>
             )}
+            <ProductModal
+                product={detailProduct}
+                isOpen={detailOpen}
+                onClose={closeDetail}
+                onAddToCart={handleModalAddToCart}
+            />
         </div>
     );
 };

@@ -90,7 +90,6 @@ class CategoryController {
         try {
             const { id } = req.params;
 
-            // Проверяем, есть ли товары в этой категории
             const productsCheck = await pool.query(
                 'SELECT COUNT(*) FROM products WHERE category_id = $1',
                 [id]

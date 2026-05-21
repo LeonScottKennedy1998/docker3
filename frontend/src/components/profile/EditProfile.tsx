@@ -1,20 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Profile.css';
+import '../auth/Auth.css';
 import { API_URLS, getAuthHeaders } from '../../config/api';
 import TwoFactorSettings from './TwoFactorSettings';
-
-interface UserProfile {
-    id: number;
-    email: string;
-    role: string;
-    first_name: string;
-    last_name: string;
-    patronymic: string;
-    phone: string;
-    is_active: boolean;
-    created_at: string;
-}
+import type { UserProfile } from '../../types/props';
 
 const EditProfile = () => {
     const navigate = useNavigate();
@@ -36,7 +26,15 @@ const EditProfile = () => {
         confirmPassword: ''
     });
     
-    const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'security'>('profile');
+    const [activeTab, setActiveTab] = useState<'profile' | 'appearance' | 'password' | 'security'>('profile');
+
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showNewPassword, setShowNewPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+    const [uiTheme, setUiTheme] = useState<'light' | 'dark'>('light');
+    const [catalogPageSize, setCatalogPageSize] = useState<10 | 15 | 20>(15);
+    const isClient = user?.role === 'Клиент';
 
     useEffect(() => {
         fetchProfile();
@@ -61,6 +59,11 @@ const EditProfile = () => {
                 patronymic: data.user.patronymic || '',
                 phone: data.user.phone || ''
             });
+            setUiTheme(data.user.theme === 'dark' ? 'dark' : 'light');
+            const cps = Number(data.user.catalog_page_size);
+            setCatalogPageSize(
+                [10, 15, 20].includes(cps) ? (cps as 10 | 15 | 20) : 15
+            );
         } catch (err: any) {
             setError(err.message);
         } finally {
@@ -105,7 +108,10 @@ const EditProfile = () => {
                 first_name: data.user.first_name,
                 last_name: data.user.last_name,
                 patronymic: data.user.patronymic,
-                phone: data.user.phone
+                phone: data.user.phone,
+                theme: data.user.theme ?? storedUser.theme ?? 'light',
+                catalog_page_size:
+                    data.user.catalog_page_size ?? storedUser.catalog_page_size ?? 15
             };
             localStorage.setItem('user', JSON.stringify(updatedUser));
             
@@ -115,9 +121,64 @@ const EditProfile = () => {
             
             setSuccess('Профиль успешно обновлен!');
             setTimeout(() => setSuccess(''), 3000);
-            
-            setUser(data.user);
-            
+
+            setUser({
+                ...data.user,
+                theme: data.user.theme ?? updatedUser.theme,
+                catalog_page_size:
+                    data.user.catalog_page_size ?? updatedUser.catalog_page_size
+            });
+
+        } catch (err: any) {
+            setError(err.message);
+        }
+    };
+
+    const handlePreferencesSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+
+        try {
+            const response = await fetch(API_URLS.AUTH.PREFERENCES, {
+                method: 'PUT',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                    theme: uiTheme,
+                    catalog_page_size: isClient ? catalogPageSize : 15
+                })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) throw new Error(data.error || 'Ошибка сохранения настроек');
+
+            const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+            const updatedUser = {
+                ...storedUser,
+                theme: data.theme,
+                catalog_page_size: data.catalog_page_size
+            };
+            localStorage.setItem('user', JSON.stringify(updatedUser));
+
+            window.dispatchEvent(
+                new CustomEvent('userUpdated', {
+                    detail: updatedUser
+                })
+            );
+
+            setSuccess('Настройки оформления сохранены');
+            setTimeout(() => setSuccess(''), 3000);
+
+            setUser((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          theme: data.theme,
+                          catalog_page_size: data.catalog_page_size
+                      }
+                    : prev
+            );
         } catch (err: any) {
             setError(err.message);
         }
@@ -203,6 +264,12 @@ const EditProfile = () => {
                     onClick={() => setActiveTab('profile')}
                 >
                     👤 Личные данные
+                </button>
+                <button 
+                    className={`tab-btn ${activeTab === 'appearance' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('appearance')}
+                >
+                    🎨 Оформление
                 </button>
                 <button 
                     className={`tab-btn ${activeTab === 'password' ? 'active' : ''}`}
@@ -292,6 +359,57 @@ const EditProfile = () => {
                             </div>
                         </form>
                     </div>
+                ) : activeTab === 'appearance' ? (
+                    <div className="profile-form appearance-form">
+                        <div className="user-info-summary">
+                            <h3>{isClient ? 'Внешний вид и каталог' : 'Внешний вид'}</h3>
+                            <p className="appearance-note">
+                                Настройки хранятся в вашем аккаунте. На экранах входа и регистрации до авторизации
+                                всегда используется светлое оформление.
+                            </p>
+                        </div>
+                        <form onSubmit={handlePreferencesSubmit}>
+                            <div className="form-group">
+                                <label htmlFor="pref-theme">Тема интерфейса</label>
+                                <select
+                                    id="pref-theme"
+                                    value={uiTheme}
+                                    onChange={(e) => setUiTheme(e.target.value === 'dark' ? 'dark' : 'light')}
+                                >
+                                    <option value="light">Светлая</option>
+                                    <option value="dark">Тёмная</option>
+                                </select>
+                            </div>
+                            {isClient && (
+                                <div className="form-group">
+                                    <label htmlFor="pref-catalog-size">Товаров на странице каталога</label>
+                                    <select
+                                        id="pref-catalog-size"
+                                        value={catalogPageSize}
+                                        onChange={(e) =>
+                                            setCatalogPageSize(parseInt(e.target.value, 10) as 10 | 15 | 20)
+                                        }
+                                    >
+                                        <option value={10}>10</option>
+                                        <option value={15}>15</option>
+                                        <option value={20}>20</option>
+                                    </select>
+                                </div>
+                            )}
+                            <div className="form-actions">
+                                <button type="submit" className="cta-button">
+                                    Сохранить настройки
+                                </button>
+                                <button
+                                    type="button"
+                                    className="secondary-btn"
+                                    onClick={() => setActiveTab('profile')}
+                                >
+                                    Назад
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 ) : activeTab === 'password' ? (
                     <div className="password-form">
                         <div className="password-info">
@@ -303,40 +421,70 @@ const EditProfile = () => {
                         </div>
 
                         <form onSubmit={handlePasswordSubmit}>
-                            <div className="form-group">
+                            <div className="form-group password-group">
                                 <label>Текущий пароль *</label>
-                                <input
-                                    type="password"
-                                    name="currentPassword"
-                                    value={passwordData.currentPassword}
-                                    onChange={handlePasswordChange}
-                                    placeholder="••••••••"
-                                    required
-                                />
+                                <div className="password-input-wrapper">
+                                    <input
+                                        type={showCurrentPassword ? 'text' : 'password'}
+                                        name="currentPassword"
+                                        value={passwordData.currentPassword}
+                                        onChange={handlePasswordChange}
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle"
+                                        onClick={() => setShowCurrentPassword((v) => !v)}
+                                        aria-label={showCurrentPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                                    >
+                                        {showCurrentPassword ? '👁️' : '👁️‍🗨️'}
+                                    </button>
+                                </div>
                             </div>
-                            
-                            <div className="form-group">
+
+                            <div className="form-group password-group">
                                 <label>Новый пароль *</label>
-                                <input
-                                    type="password"
-                                    name="newPassword"
-                                    value={passwordData.newPassword}
-                                    onChange={handlePasswordChange}
-                                    placeholder="••••••••"
-                                    required
-                                />
+                                <div className="password-input-wrapper">
+                                    <input
+                                        type={showNewPassword ? 'text' : 'password'}
+                                        name="newPassword"
+                                        value={passwordData.newPassword}
+                                        onChange={handlePasswordChange}
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle"
+                                        onClick={() => setShowNewPassword((v) => !v)}
+                                        aria-label={showNewPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                                    >
+                                        {showNewPassword ? '👁️' : '👁️‍🗨️'}
+                                    </button>
+                                </div>
                             </div>
-                            
-                            <div className="form-group">
+
+                            <div className="form-group password-group">
                                 <label>Подтверждение нового пароля *</label>
-                                <input
-                                    type="password"
-                                    name="confirmPassword"
-                                    value={passwordData.confirmPassword}
-                                    onChange={handlePasswordChange}
-                                    placeholder="••••••••"
-                                    required
-                                />
+                                <div className="password-input-wrapper">
+                                    <input
+                                        type={showConfirmPassword ? 'text' : 'password'}
+                                        name="confirmPassword"
+                                        value={passwordData.confirmPassword}
+                                        onChange={handlePasswordChange}
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="password-toggle"
+                                        onClick={() => setShowConfirmPassword((v) => !v)}
+                                        aria-label={showConfirmPassword ? 'Скрыть пароль' : 'Показать пароль'}
+                                    >
+                                        {showConfirmPassword ? '👁️' : '👁️‍🗨️'}
+                                    </button>
+                                </div>
                             </div>
                             
                             <div className="form-actions">

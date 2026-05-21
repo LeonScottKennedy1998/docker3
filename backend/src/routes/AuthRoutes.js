@@ -12,6 +12,7 @@ router.post('/reset-password/:token', authController.resetPassword);
 
 router.get('/profile', authMiddleware, authController.getProfile);
 router.put('/profile', authMiddleware, authController.updateProfile);
+router.put('/preferences', authMiddleware, authController.updatePreferences);
 router.put('/change-password', authMiddleware, authController.changePassword);
 router.post('/logout', authMiddleware, authController.logout);
 
